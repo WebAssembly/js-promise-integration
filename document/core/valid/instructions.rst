@@ -10,6 +10,13 @@ and the provided output stack with result values of types :math:`t_2^\ast` that 
 Moreover, it enumerates the :ref:`indices <syntax-localidx>` :math:`x^\ast` of locals that have been set by the instruction.
 In most cases, this is empty.
 
+.. math::
+   \frac{
+     (\vdash t \leq t')^\ast
+   }{
+     \vdash [t^\ast] \leq [{t'}^\ast]
+   }
+
 .. note::
    For example, the instruction :math:`\I32.\ADD` has type :math:`[\I32~\I32] \to [\I32]`,
    consuming two |I32| values and producing one.
