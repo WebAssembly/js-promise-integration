@@ -49,11 +49,16 @@ $(JSLIB):
 
 # Unit tests
 
-UNITTESTDIR =	unittest
-UNITTESTFILES =	$(shell cd $(UNITTESTDIR) > /dev/null; ls *.ml)
-UNITTESTS =	$(UNITTESTFILES:%.ml=%)
+FILES =		$(shell ls $(DIRS:%=%/*) | grep '[.]ml[^.]*$$')
+PACK =		$(shell echo `echo $(LIB) | sed 's/^\(.\).*$$/\\1/g' | tr [:lower:] [:upper:]``echo $(LIB) | sed 's/^.\(.*\)$$/\\1/g'`)
 
-.PHONY: unittest
+.INTERMEDIATE:	$(LIB).mlpack
+$(LIB).mlpack:	$(DIRS)
+		ls $(FILES) \
+		| sed 's:\(.*/\)\{0,1\}\(.*\)\.[^\.]*:\2:' \
+		| grep -v main \
+		| sort | uniq \
+		>$@
 
 unittest: $(UNITTESTS:%=unittest/%)
 
