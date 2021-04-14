@@ -102,10 +102,140 @@
     ;; Missing end marker here
     "\0b\03\01\01\00"          ;; Data section
   )
-  ;; The spec interpreter consumes the `\0b` (data section start) as an
-  ;; END instruction (also happens to be `\0b`) and reports the code section as
-  ;; being larger than declared.
-  "section size mismatch"
+  "integer too large"
+)
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\01\04\01\60\00\00"       ;; Type section
+    "\03\02\01\00"             ;; Function section
+    "\05\03\01\00\01"          ;; Memory section
+    "\0a\10\01"                ;; Code section
+    ;; function 0
+    "\0e\01\01"                ;; local type count
+    "\7f"                      ;; i32
+    "\41\00"                   ;; i32.const 0
+    "\28"                      ;; i32.load
+    "\02"                      ;; alignment 2
+    "\82\80\80\80\40"          ;; offset 2 with some unused bits set
+    "\1a"                      ;; drop
+    "\0b"                      ;; end
+  )
+  "integer too large"
+)
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\01\04\01\60\00\00"       ;; Type section
+    "\03\02\01\00"             ;; Function section
+    "\05\03\01\00\01"          ;; Memory section
+    "\0a\10\01"                ;; Code section
+    "\0e\01\01"                ;; local type count
+    "\7f"                      ;; i32
+    "\41\00"                   ;; i32.const 0
+    "\28"                      ;; i32.load
+    "\82\80\80\80\10"          ;; alignment 2 with unused bits set
+    "\00"                      ;; offset 0
+    "\1a"                      ;; drop
+    "\0b"                      ;; end
+  )
+  "integer too large"
+)
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\01\04\01\60\00\00"       ;; Type section
+    "\03\02\01\00"             ;; Function section
+    "\05\03\01\00\01"          ;; Memory section
+    "\0a\10\01"                ;; Code section
+    ;; function 0
+    "\0e\01\01"                ;; local type count
+    "\7f"                      ;; i32
+    "\41\00"                   ;; i32.const 0
+    "\28"                      ;; i32.load
+    "\82\80\80\80\40"          ;; alignment 2 with some unused bits set
+    "\00"                      ;; offset 0
+    "\1a"                      ;; drop
+    "\0b"                      ;; end
+  )
+  "integer too large"
+)
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\01\04\01\60\00\00"       ;; Type section
+    "\03\02\01\00"             ;; Function section
+    "\05\03\01\00\01"          ;; Memory section
+    "\0a\11\01"                ;; Code section
+    ;; function 0
+    "\0f\01\01"                ;; local type count
+    "\7f"                      ;; i32
+    "\41\00"                   ;; i32.const 0
+    "\41\03"                   ;; i32.const 3
+    "\36"                      ;; i32.store
+    "\82\80\80\80\10"          ;; alignment 2 with unused bits set
+    "\03"                      ;; offset 3
+    "\0b"                      ;; end
+  )
+  "integer too large"
+)
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\01\04\01\60\00\00"       ;; Type section
+    "\03\02\01\00"             ;; Function section
+    "\05\03\01\00\01"          ;; Memory section
+    "\0a\11\01"                ;; Code section
+    ;; function 0
+    "\0f\01\01"                ;; local type count
+    "\7f"                      ;; i32
+    "\41\00"                   ;; i32.const 0
+    "\41\03"                   ;; i32.const 3
+    "\36"                      ;; i32.store
+    "\82\80\80\80\40"          ;; alignment 2 with some unused bits set
+    "\03"                      ;; offset 3
+    "\0b"                      ;; end
+  )
+  "integer too large"
+)
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\01\04\01\60\00\00"       ;; Type section
+    "\03\02\01\00"             ;; Function section
+    "\05\03\01\00\01"          ;; Memory section
+    "\0a\11\01"                ;; Code section
+    ;; function 0
+    "\0f\01\01"                ;; local type count
+    "\7f"                      ;; i32
+    "\41\00"                   ;; i32.const 0
+    "\41\03"                   ;; i32.const 3
+    "\36"                      ;; i32.store
+    "\02"                      ;; alignment 2
+    "\82\80\80\80\10"          ;; offset 2 with unused bits set
+    "\0b"                      ;; end
+  )
+  "integer too large"
+)
+(assert_malformed
+  (module binary
+    "\00asm" "\01\00\00\00"
+    "\01\04\01\60\00\00"       ;; Type section
+    "\03\02\01\00"             ;; Function section
+    "\05\03\01\00\01"          ;; Memory section
+    "\0a\11\01"                ;; Code section
+
+    ;; function 0
+    "\0f\01\01"                ;; local type count
+    "\7f"                      ;; i32
+    "\41\00"                   ;; i32.const 0
+    "\41\03"                   ;; i32.const 3
+    "\36"                      ;; i32.store
+    "\02"                      ;; alignment 2
+    "\82\80\80\80\40"          ;; offset 2 with some unused bits set
+    "\0b"                      ;; end
+  )
+  "integer too large"
 )
 
 ;; Init expression with missing end marker
