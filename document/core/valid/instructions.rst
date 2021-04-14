@@ -7,8 +7,30 @@ Instructions
 :ref:`Instructions <syntax-instr>` are classified by :ref:`instruction types <syntax-instrtype>` that describe how they manipulate the :ref:`operand stack <stack>` and initialize :ref:`locals <syntax-local>`:
 A type :math:`[t_1^\ast] \to_{x^\ast} [t_2^\ast]` describes the required input stack with argument values of types :math:`t_1^\ast` that an instruction pops off
 and the provided output stack with result values of types :math:`t_2^\ast` that it pushes back.
-Moreover, it enumerates the :ref:`indices <syntax-localidx>` :math:`x^\ast` of locals that have been set by the instruction.
-In most cases, this is empty.
+Stack types are akin to :ref:`function types <syntax-functype>`,
+except that they allow individual operands to be classified as :math:`\bot` (*bottom*), indicating that the type is unconstrained.
+As an auxiliary notion, an operand type :math:`t_1` *matches* another operand type :math:`t_2`, if :math:`t_1` is either :math:`\bot` or equal to :math:`t_2`.
+This is extended to stack types in a point-wise manner.
+
+.. _match-opdtype:
+
+.. math::
+   \frac{
+   }{
+     \vdash t \leq t
+   }
+   \qquad
+   \frac{
+   }{
+     \vdash \bot \leq t
+   }
+
+.. math::
+   \frac{
+     (\vdash t \leq t')^\ast
+   }{
+     \vdash [t^\ast] \leq [{t'}^\ast]
+   }
 
 .. note::
    For example, the instruction :math:`\I32.\ADD` has type :math:`[\I32~\I32] \to [\I32]`,
@@ -2103,12 +2125,19 @@ Control Instructions
 ...........................
 
 
+* The label :math:`C.\CLABELS[l_N]` must be defined in the context.
+
 * The :ref:`label <syntax-label>` :math:`C.\CLABELS[l_N]` must be defined in the context.
 
 * For each :ref:`label <syntax-label>` :math:`l_i` in :math:`l^\ast`,
   the label :math:`C.\CLABELS[l_i]` must be defined in the context.
 
-* There must be a sequence :math:`t^\ast` of :ref:`value types <syntax-valtype>`, such that:
+* There must be a :ref:`result type <syntax-resulttype>` :math:`[t^\ast]`, such that:
+
+  * For each :ref:`operand type <syntax-opdtype>` :math:`t_j` in :math:`t^\ast` and corresponding type :math:`t'_{Nj}` in :math:`C.\CLABELS[l_N]`, :math:`t_j` :ref:`matches <match-opdtype>` :math:`t'_{Nj}`.
+
+  * For all :math:`l_i` in :math:`l^\ast`,
+    and for each :ref:`operand type <syntax-opdtype>` :math:`t_j` in :math:`t^\ast` and corresponding type :math:`t'_{ij}` in :math:`C.\CLABELS[l_i]`, :math:`t_j` :ref:`matches <match-opdtype>` :math:`t'_{ij}`.
 
   * The result type :math:`[t^\ast]` :ref:`matches <match-resulttype>` :math:`C.\CLABELS[l_N]`.
 
@@ -2119,11 +2148,9 @@ Control Instructions
 
 .. math::
    \frac{
-     (C \vdashresulttypematch [t^\ast] \matchesresulttype C.\CLABELS[l])^\ast
+     (\vdash [t^\ast] \leq C.\CLABELS[l])^\ast
      \qquad
-     C \vdashresulttypematch [t^\ast] \matchesresulttype C.\CLABELS[l_N]
-     \qquad
-     C \vdashinstrtype [t_1^\ast~t^\ast~\I32] \to [t_2^\ast] \ok
+     \vdash [t^\ast] \leq C.\CLABELS[l_N]
    }{
      C \vdashinstr \BRTABLE~l^\ast~l_N : [t_1^\ast~t^\ast~\I32] \to [t_2^\ast]
    }
@@ -2536,15 +2563,11 @@ Non-empty Instruction Sequence: :math:`\instr~{\instr'}^\ast`
 
 .. math::
    \frac{
-     \begin{array}{@{}l@{\qquad}l@{}}
-     C \vdashinstr \instr : [t_1^\ast] \to_{x_1^\ast} [t_2^\ast]
-     &
-     (C.\CLOCALS[x_1] = \init~t)^\ast
-     \\
-     C' \vdashinstrseq {\instr'}^\ast : [t_2^\ast] \to_{x_2^\ast} [t_3^\ast]
-     &
-     C' = C~(\with C.\CLOCALS[x_1] = \SET~t)^\ast
-     \end{array}
+     C \vdashinstrseq \instr^\ast : [t_1^\ast] \to [t_0^\ast~{t'}^\ast]
+     \qquad
+     \vdash [{t'}^\ast] \leq [t^\ast]
+     \qquad
+     C \vdashinstr \instr_N : [t^\ast] \to [t_3^\ast]
    }{
      C \vdashinstrseq \instr~{\instr'}^\ast : [t_1^\ast] \to_{x_1^\ast x_2^\ast} [t_2^\ast~t_3^\ast]
    }
@@ -2610,7 +2633,9 @@ Expressions :math:`\expr` are classified by :ref:`result types <syntax-resulttyp
 
 .. math::
    \frac{
-     C \vdashinstrseq \instr^\ast : [] \to [t^\ast]
+     C \vdashinstrseq \instr^\ast : [] \to [{t'}^\ast]
+     \qquad
+     \vdash [{t'}^\ast] \leq [t^\ast]
    }{
      C \vdashexpr \instr^\ast~\END : [t^\ast]
    }
