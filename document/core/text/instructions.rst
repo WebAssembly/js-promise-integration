@@ -77,7 +77,7 @@ However, the special case of a type use that is syntactically empty or consists 
    \begin{array}[t]{@{}c@{}} ::= \\ | \\ \end{array}
    &
    \begin{array}[t]{@{}lcll@{}}
-     (t{:}\Tresult_I)^? &\Rightarrow& t^? \\
+     (t{:}\Tresult)^? &\Rightarrow& t^? \\
      x,I'{:}\Ttypeuse_I &\Rightarrow& x & (\iff I' = \{\ILOCALS~(\epsilon)^\ast\}) \\
    \end{array} \\
    \production{block instruction} & \Tblockinstr_I &::=&
@@ -150,13 +150,7 @@ All other control instruction are represented verbatim.
      \text{call}~~x{:}\Tfuncidx_I &\Rightarrow& \CALL~x \\ &&|&
      \text{call\_ref}~~x{:}\Ttypeidx &\Rightarrow& \CALLREF~x \\ &&|&
      \text{call\_indirect}~~x{:}\Ttableidx~~y,I'{:}\Ttypeuse_I &\Rightarrow& \CALLINDIRECT~x~y
-       & (\iff I' = \{\ILOCALS~(\epsilon)^\ast\}) \\&&|&
-     \text{return\_call}~~x{:}\Tfuncidx_I &\Rightarrow& \RETURNCALL~x \\ &&|&
-     \text{return\_call\_ref}~~x{:}\Ttypeidx &\Rightarrow& \RETURNCALLREF~x \\ &&|&
-     \text{return\_call\_indirect}~~x{:}\Ttableidx~~y,I'{:}\Ttypeuse_I &\Rightarrow& \RETURNCALLINDIRECT~x~y
-       & (\iff I' = \{\ILOCALS~(\epsilon)^\ast\}) \\ &&|&
-     \text{throw}~~x{:}\Ttagidx_I &\Rightarrow& \THROW~x \\ &&|&
-     \text{throw\_ref} &\Rightarrow& \THROWREF \\
+       & (\iff I' = \{\ILOCALS~(\epsilon)^\ast\}) \\
    \end{array}
 
 .. note::

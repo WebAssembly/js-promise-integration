@@ -104,7 +104,7 @@ Control Instructions
    The |ELSE| opcode :math:`\hex{05}` in the encoding of an |IF| instruction can be omitted if the following instruction sequence is empty.
 
    Unlike any :ref:`other occurrence <binary-typeidx>`, the :ref:`type index <syntax-typeidx>` in a :ref:`block type <syntax-blocktype>` is encoded as a positive :ref:`signed integer <syntax-sint>`, so that its |SignedLEB128| bit pattern cannot collide with the encoding of :ref:`value types <binary-valtype>` or the special code :math:`\hex{40}`, which correspond to the LEB128 encoding of negative integers.
-   To avoid any loss in the range of allowed indices, it is treated as a 33 bit signed integer.
+   To avoid any loss in the range of allowed indices, it is treated as a 33 bit signed integer. 
 
 
 .. index:: reference instruction
