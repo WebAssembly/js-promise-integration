@@ -1,5 +1,5 @@
 let name = "wasm"
-let version = "3.0.0"
+let version = "1.1"
 
 let all_handlers = [
   (module Handler_custom : Custom.Handler);
