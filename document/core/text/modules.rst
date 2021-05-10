@@ -17,6 +17,8 @@ Modules
 .. _text-funcidx:
 .. _text-tableidx:
 .. _text-memidx:
+.. _text-elemidx:
+.. _text-dataidx:
 .. _text-globalidx:
 .. _text-tagidx:
 .. _text-elemidx:
