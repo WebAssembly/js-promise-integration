@@ -382,7 +382,7 @@ A :ref:`data segment <text-data>` can be given inline with a memory definition, 
        \text{(}~\text{memory}~~\Tid'~~m~~m~\text{)} \\ & \qquad
        \text{(}~\text{data}~~\text{(}~\text{memory}~~\Tid'~\text{)}~~\text{(}~\text{i32.const}~~\text{0}~\text{)}~~\Tdatastring~\text{)}
        \\ & \qquad\qquad
-       (\iff \Tid^? \neq \epsilon \wedge \Tid' = \Tid^? \vee \Tid^? = \epsilon \wedge \Tid' \idfresh, m = \F{ceil}(n / 64\,\F{Ki})) \\
+       (\iff \Tid^? \neq \epsilon \wedge \Tid' = \Tid^? \vee \Tid^? = \epsilon \wedge \Tid' \idfresh, m = \F{ceil}(n / 64\F{Ki})) \\
    \end{array}
 
 Memories can be defined as :ref:`imports <text-import>` or :ref:`exports <text-export>` inline:
