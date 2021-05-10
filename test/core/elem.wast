@@ -812,14 +812,11 @@
   "constant expression required"
 )
 
-(assert_invalid
-  (module
-    (global $g (import "test" "g") (mut i32))
-    (table 1 funcref)
-    (elem (global.get $g))
-  )
-  "constant expression required"
-)
+;; Use of internal globals in constant expressions is not allowed in MVP.
+;; (assert_invalid
+;;   (module (table 1 funcref) (elem (global.get $g)) (global $g i32 (i32.const 0)))
+;;   "constant expression required"
+;; )
 
 (assert_invalid
    (module 
@@ -846,7 +843,6 @@
    )
    "constant expression required"
 )
-
 
 ;; Invalid elements
 
@@ -891,6 +887,13 @@
   "constant expression required"
 )
 
+(assert_invalid
+  (module
+    (table 1 funcref)
+    (elem (i32.const 0) funcref (item (i32.add (i32.const 0) (i32.const 1))))
+  )
+  "constant expression required"
+)
 
 ;; Two elements target the same slot
 
