@@ -55,13 +55,8 @@ urlPrefix: https://tc39.github.io/ecma262/; spec: ECMASCRIPT
         text: IterableToList; url: sec-iterabletolist
         text: ToBigInt64; url: #sec-tobigint64
         text: BigInt; url: #sec-ecmascript-language-types-bigint-type
-        text: MakeBasicObject; url: #sec-makebasicobject
-        text: ℝ; url: #ℝ
-        text: Built-in Function Objects; url: sec-built-in-function-objects
-        text: NativeError Object Structure; url: sec-nativeerror-object-structure
-        text: 𝔽; url: #𝔽
-        text: ℤ; url: #ℤ
-        text: SameValue; url: sec-samevalue
+    type: abstract-op
+        text: CreateMethodProperty; url: sec-createmethodproperty
 urlPrefix: https://webassembly.github.io/spec/core/; spec: WebAssembly; type: dfn
     url: valid/modules.html#valid-module
         text: valid
