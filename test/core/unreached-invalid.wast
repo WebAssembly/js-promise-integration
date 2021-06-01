@@ -694,17 +694,6 @@
  "type mismatch"
 )
 
-(assert_invalid
-  (module
-    (func $type-after-ref.as_non_null
-      (unreachable)
-      (ref.as_non_null)
-      (f32.abs)
-    )
-  )
-  "type mismatch"
-)
-
 ;; The first two operands should have the same type as each other
 (assert_invalid
   (module (func (unreachable) (select (i32.const 1) (i64.const 1) (i32.const 1)) (drop)))
@@ -759,24 +748,3 @@
   "type mismatch"
 )
 
-
-(assert_invalid
-  (module
-    (type $t (func (param i32) (result i64)))
-    (func (result i32)
-      (unreachable)
-      (call_ref $t)
-    )
-  )
-  "type mismatch"
-)
-(assert_invalid
-  (module
-    (type $t (func (param i32) (result i32 i32)))
-    (func (result i32)
-      (unreachable)
-      (call_ref $t)
-    )
-  )
-  "type mismatch"
-)
