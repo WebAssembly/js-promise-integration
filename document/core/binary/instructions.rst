@@ -119,34 +119,6 @@ Generic :ref:`reference instructions <syntax-instr-ref>` are represented by sing
 .. _binary-ref.null:
 .. _binary-ref.func:
 .. _binary-ref.is_null:
-.. _binary-ref.as_non_null:
-.. _binary-struct.new:
-.. _binary-struct.new_default:
-.. _binary-struct.get:
-.. _binary-struct.get_s:
-.. _binary-struct.get_u:
-.. _binary-struct.set:
-.. _binary-array.new:
-.. _binary-array.new_default:
-.. _binary-array.new_fixed:
-.. _binary-array.new_elem:
-.. _binary-array.new_data:
-.. _binary-array.get:
-.. _binary-array.get_s:
-.. _binary-array.get_u:
-.. _binary-array.set:
-.. _binary-array.len:
-.. _binary-array.fill:
-.. _binary-array.copy:
-.. _binary-array.init_data:
-.. _binary-array.init_elem:
-.. _binary-ref.i31:
-.. _binary-i31.get_s:
-.. _binary-i31.get_u:
-.. _binary-ref.test:
-.. _binary-ref.cast:
-.. _binary-any.convert_extern:
-.. _binary-extern.convert_any:
 
 .. math::
    \begin{array}{llclll}
