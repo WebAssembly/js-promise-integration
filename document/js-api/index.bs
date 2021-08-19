@@ -36,10 +36,48 @@ urlPrefix: https://tc39.github.io/ecma262/; spec: ECMASCRIPT
         text: TypeError; url: sec-native-error-types-used-in-this-standard-typeerror
         text: RangeError; url: sec-native-error-types-used-in-this-standard-rangeerror
     type: dfn
-        url: sec-returnifabrupt-shorthands
-            text: !
-            text: ?
-        text: Type; url: sec-ecmascript-data-types-and-values
+        text: agent cluster; url: sec-agent-clusters
+        text: agent; url: agent
+        text: data block; url: sec-data-blocks
+        text: Bound Function; url: sec-bound-function-exotic-objects
+        text: NumericLiteral; url: sec-literals-numeric-literals
+        text: surrounding agent; url: surrounding-agent
+        text: ToNumber; url: sec-tonumber
+        text: ToInt32; url: sec-toint32
+        text: ToString; url: sec-tostring
+        url: sec-ecmascript-data-types-and-values
+            text: Type
+            text: Type(x)
+        url: sec-iscallable
+            text: IsCallable
+            text: callable; for: ECMAScript
+        url: sec-well-known-intrinsic-objects
+            text: %ErrorPrototype%
+        text: %ObjectPrototype%; url: sec-properties-of-the-object-prototype-object
+        text: %Promise%; url: sec-promise-constructor
+        text: Property Descriptor; url: sec-property-descriptor-specification-type
+        text: array index; url: sec-array-exotic-objects
+        text: OrdinaryGetOwnProperty; url: sec-ordinarygetownproperty
+        text: OrdinaryDefineOwnProperty; url: sec-ordinarydefineownproperty
+        text: OrdinaryPreventExtensions; url: sec-ordinarypreventextensions
+        text: OrdinarySet; url: sec-ordinaryset
+        text: equally close values; url: sec-ecmascript-language-types-number-type
+        text: internal slot; url: sec-object-internal-methods-and-internal-slots
+        text: JavaScript execution context stack; url: execution-context-stack
+        text: running JavaScript execution context; url: running-execution-context
+        text: GetIterator; url: sec-getiterator
+        text: IteratorStep; url: sec-iteratorstep
+        text: NormalCompletion; url: sec-normalcompletion
+        text: IteratorValue; url: sec-iteratorvalue
+        url: sec-well-known-symbols
+            text: @@iterator
+            text: @@toStringTag
+        text: CreateDataProperty; url: sec-createdataproperty
+        text: DetachArrayBuffer; url: sec-detacharraybuffer
+        text: SetIntegrityLevel; url: sec-setintegritylevel
+        text: Call; url: sec-call
+        text: Get; url: sec-get-o-p
+        text: DefinePropertyOrThrow; url: sec-definepropertyorthrow
         text: current Realm; url: current-realm
         text: ObjectCreate; url: sec-objectcreate
         text: CreateBuiltinFunction; url: sec-createbuiltinfunction
@@ -1113,7 +1151,7 @@ This slot holds a [=function address=] relative to the [=surrounding agent=]'s [
     1. Let [|paramTypes|] → [<var ignore>resultTypes</var>] be |functype|.
     1. Let |arity| be |paramTypes|'s [=list/size=].
     1. Let |name| be the [=name of the WebAssembly function=] |funcaddr|.
-    1. Let |function| be [=!=] [$CreateBuiltinFunction$](|steps|, |arity|, |name|, « \[[FunctionAddress]] », |realm|).
+    1. Let |function| be [=!=] [=CreateBuiltinFunction=](|steps|, |arity|, |name|, « \[[FunctionAddress]] », |realm|).
     1. Set |function|.\[[FunctionAddress]] to |funcaddr|.
     1. [=map/Set=] |map|[|funcaddr|] to |function|.
     1. Return |function|.
