@@ -1,5 +1,16 @@
-[![CI for specs](https://github.com/WebAssembly/spec/actions/workflows/ci-spec.yml/badge.svg)](https://github.com/WebAssembly/spec/actions/workflows/ci-spec.yml)
-[![CI for interpreter & tests](https://github.com/WebAssembly/spec/actions/workflows/ci-interpreter.yml/badge.svg)](https://github.com/WebAssembly/spec/actions/workflows/ci-interpreter.yml)
+[![Build Status](https://travis-ci.org/WebAssembly/js-promise-integration.svg?branch=main)](https://travis-ci.org/WebAssembly/js-promise-integration)
+
+# JavaScript-Promise Integration Proposal for WebAssembly
+
+This repository is a clone of [github.com/WebAssembly/spec/](https://github.com/WebAssembly/spec/).
+It is meant for discussion, prototype specification and implementation of a proposal to
+add support for different patterns of non-local control flow to WebAssembly.
+
+* See the [overview](proposals/js-promise-integration/Overview.md) for a summary of the proposal.
+
+* See the [modified spec](https://webassembly.github.io/js-promise-integration/) for details.
+
+Original `README` from upstream repository follows…
 
 # spec
 
