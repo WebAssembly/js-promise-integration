@@ -467,6 +467,12 @@ sub_type :
     { fun c x -> SubT (Final,
         List.map (fun y -> VarHT (StatX y.it)) ($4 c type_), $5 c x) }
 
+func_type_result :
+  | /* empty */
+    { [] }
+  | LPAR RESULT value_type_list RPAR func_type_result
+    { $3 @ $5 }
+
 table_type :
   | limits ref_type { fun c -> TableT ($1, $2 c) }
 
