@@ -439,33 +439,17 @@ array_type :
 
 func_type :
   | func_type_result
-    { fun c -> FuncT ([], $1 c) }
-  | LPAR PARAM val_type_list RPAR func_type
-    { fun c -> let FuncT (ts1, ts2) = $5 c in
-      FuncT (snd $3 c @ ts1, ts2) }
-  | LPAR PARAM bind_var val_type RPAR func_type  /* Sugar */
-    { fun c -> let FuncT (ts1, ts2) = $6 c in
-      FuncT ($4 c :: ts1, ts2) }
+    { FuncType ([], $1) }
+  | LPAR PARAM value_type_list RPAR func_type
+    { let FuncType (ins, out) = $5 in FuncType ($3 @ ins, out) }
+  | LPAR PARAM bind_var value_type RPAR func_type  /* Sugar */
+    { let FuncType (ins, out) = $6 in FuncType ($4 :: ins, out) }
 
 func_type_result :
   | /* empty */
-    { fun c -> [] }
-  | LPAR RESULT val_type_list RPAR func_type_result
-    { fun c -> snd $3 c @ $5 c }
-
-str_type :
-  | LPAR STRUCT struct_type RPAR { fun c x -> DefStructT ($3 c x) }
-  | LPAR ARRAY array_type RPAR { fun c x -> DefArrayT ($3 c) }
-  | LPAR FUNC func_type RPAR { fun c x -> DefFuncT ($3 c) }
-
-sub_type :
-  | str_type { fun c x -> SubT (Final, [], $1 c x) }
-  | LPAR SUB var_list str_type RPAR
-    { fun c x -> SubT (NoFinal,
-        List.map (fun y -> VarHT (StatX y.it)) ($3 c type_), $4 c x) }
-  | LPAR SUB FINAL var_list str_type RPAR
-    { fun c x -> SubT (Final,
-        List.map (fun y -> VarHT (StatX y.it)) ($4 c type_), $5 c x) }
+    { [] }
+  | LPAR RESULT value_type_list RPAR func_type_result
+    { $3 @ $5 }
 
 table_type :
   | limits ref_type { fun c -> TableT ($1, $2 c) }
