@@ -104,63 +104,8 @@ let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
-
-// These are defined as negative integers to distinguish them from positive type
-// indices.
-let kWasmNullFuncRef = -0x0d;
-let kWasmNullExternRef = -0x0e;
-let kWasmNullRef = -0x0f;
-let kWasmFuncRef = -0x10;
-let kWasmAnyFunc = kWasmFuncRef;  // Alias named as in the JS API spec
-let kWasmExternRef = -0x11;
-let kWasmAnyRef = -0x12;
-<<<<<<< HEAD
-let kWasmEqRef = -0x13;
-let kWasmI31Ref = -0x14;
-let kWasmStructRef = -0x15;
-let kWasmArrayRef = -0x16;
-=======
-let kWasmExnRef = -0x17;
-let kWasmNullExnRef = -0x0c;
->>>>>>> exn/main
-
-// Use the positive-byte versions inside function bodies.
-let kLeb128Mask = 0x7f;
-let kFuncRefCode = kWasmFuncRef & kLeb128Mask;
-let kAnyFuncCode = kFuncRefCode;  // Alias named as in the JS API spec
-let kExternRefCode = kWasmExternRef & kLeb128Mask;
-let kAnyRefCode = kWasmAnyRef & kLeb128Mask;
-<<<<<<< HEAD
-let kEqRefCode = kWasmEqRef & kLeb128Mask;
-let kI31RefCode = kWasmI31Ref & kLeb128Mask;
-let kNullExternRefCode = kWasmNullExternRef & kLeb128Mask;
-let kNullFuncRefCode = kWasmNullFuncRef & kLeb128Mask;
-let kStructRefCode = kWasmStructRef & kLeb128Mask;
-let kArrayRefCode = kWasmArrayRef & kLeb128Mask;
-=======
-let kNullExternRefCode = kWasmNullExternRef & kLeb128Mask;
-let kNullFuncRefCode = kWasmNullFuncRef & kLeb128Mask;
-let kExnRefCode = kWasmExnRef & kLeb128Mask;
-let kNullExnRefCode = kWasmNullExnRef & kLeb128Mask;
->>>>>>> exn/main
-let kNullRefCode = kWasmNullRef & kLeb128Mask;
-
-let kWasmRefNull = 0x63;
-let kWasmRef = 0x64;
-<<<<<<< HEAD
-function wasmRefNullType(heap_type) {
-  return {opcode: kWasmRefNull, heap_type: heap_type};
-}
-function wasmRefType(heap_type) {
-  return {opcode: kWasmRef, heap_type: heap_type};
-=======
-function wasmRefNullType(heap_type, is_shared = false) {
-  return {opcode: kWasmRefNull, heap_type: heap_type, is_shared: is_shared};
-}
-function wasmRefType(heap_type, is_shared = false) {
-  return {opcode: kWasmRef, heap_type: heap_type, is_shared: is_shared};
->>>>>>> exn/main
-}
+let kWasmAnyRef = 0x6f;
+let kWasmAnyFunc = 0x70;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -210,10 +155,10 @@ let kSig_f_d = makeSig([kWasmF64], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 let kSig_r_r = makeSig([kWasmExternRef], [kWasmExternRef]);
 let kSig_a_a = makeSig([kWasmAnyFunc], [kWasmAnyFunc]);
-let kSig_i_r = makeSig([kWasmExternRef], [kWasmI32]);
-let kSig_v_r = makeSig([kWasmExternRef], []);
+let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
+let kSig_v_r = makeSig([kWasmAnyRef], []);
 let kSig_v_a = makeSig([kWasmAnyFunc], []);
-let kSig_v_rr = makeSig([kWasmExternRef, kWasmExternRef], []);
+let kSig_v_rr = makeSig([kWasmAnyRef, kWasmAnyRef], []);
 let kSig_v_aa = makeSig([kWasmAnyFunc, kWasmAnyFunc], []);
 let kSig_r_v = makeSig([], [kWasmExternRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
@@ -252,6 +197,7 @@ let kExprIf = 0x04;
 let kExprElse = 0x05;
 let kExprTry = 0x06;
 let kExprCatch = 0x07;
+let kExprCatchAll = 0x19;
 let kExprThrow = 0x08;
 let kExprRethrow = 0x09;
 let kExprThrowRef = 0x0a;
@@ -954,10 +900,9 @@ class WasmModuleBuilder {
     return glob;
   }
 
-  addTable(type, initial_size, max_size = undefined, init_expr = undefined) {
-    if (type == kWasmI32 || type == kWasmI64 || type == kWasmF32 ||
-        type == kWasmF64 || type == kWasmS128 || type == kWasmStmt) {
-      throw new Error('Tables must be of a reference type');
+  addTable(type, initial_size, max_size = undefined) {
+    if (type != kWasmAnyRef && type != kWasmAnyFunc) {
+      throw new Error('Tables must be of type kWasmAnyRef or kWasmAnyFunc');
     }
     if (init_expr != undefined) checkExpr(init_expr);
     let table = new WasmTableBuilder(
@@ -1284,7 +1229,39 @@ class WasmModuleBuilder {
         for (let global of wasm.globals) {
           section.emit_type(global.type);
           section.emit_u8(global.mutable);
-          section.emit_init_expr(global.init);
+          if ((typeof global.init_index) == "undefined") {
+            // Emit a constant initializer.
+            switch (global.type) {
+            case kWasmI32:
+              section.emit_u8(kExprI32Const);
+              section.emit_u32v(global.init);
+              break;
+            case kWasmI64:
+              section.emit_u8(kExprI64Const);
+              section.emit_u64v(global.init);
+              break;
+            case kWasmF32:
+              section.emit_bytes(wasmF32Const(global.init));
+              break;
+            case kWasmF64:
+              section.emit_bytes(wasmF64Const(global.init));
+              break;
+            case kWasmAnyFunc:
+            case kWasmAnyRef:
+              if (global.function_index !== undefined) {
+                section.emit_u8(kExprRefFunc);
+                section.emit_u32v(global.function_index);
+              } else {
+                section.emit_u8(kExprRefNull);
+              }
+              break;
+            }
+          } else {
+            // Emit a global-index initializer.
+            section.emit_u8(kExprGlobalGet);
+            section.emit_u32v(global.init_index);
+          }
+          section.emit_u8(kExprEnd);  // end of init expression
         }
       });
     }

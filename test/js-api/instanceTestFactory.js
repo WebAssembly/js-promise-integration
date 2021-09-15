@@ -237,7 +237,7 @@ const instanceTestFactory = [
 
       builder.addGlobal(kWasmI32, true)
         .exportAs("")
-        .init = wasmI32Const(7);
+        .init = 7;
 
       const buffer = builder.toBuffer();
 
