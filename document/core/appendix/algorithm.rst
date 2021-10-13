@@ -185,18 +185,7 @@ However, these variables are not manipulated directly by the main checking funct
 
    func pop_val(expect : val_type) : val_type =
      let actual = pop_val()
-     error_if(not matches_val(actual, expect))
-     return actual
-
-   func pop_num() : num_type | Bot =
-     let actual = pop_val()
-     error_if(not is_num(actual))
-     return actual
-
-   func pop_ref() : ref_type =
-     let actual = pop_val()
-     error_if(not is_ref(actual))
-     if (actual = Bot) return Ref(Bot, false)
+     error_if(actual =/= expect && actual =/= Unknown && expect =/= Unknown)
      return actual
 
    func push_vals(types : list(val_type)) = foreach (t in types) push_val(t)
