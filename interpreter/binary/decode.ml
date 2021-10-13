@@ -1320,7 +1320,7 @@ let module_ s =
   let func_bodies = code_section s in
   let customs = customs @ iterate (custom_section (After Code)) s in
   let datas = data_section s in
-  let customs = customs @ iterate (custom_section (After Data)) s in
+  iterate custom_section s;
   require (pos s = len s) s (len s) "unexpected content after last section";
   require (List.length func_types = List.length func_bodies)
     s (len s) "function and code section have inconsistent lengths";
