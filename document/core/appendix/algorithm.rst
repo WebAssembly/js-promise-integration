@@ -240,7 +240,7 @@ The control stack is likewise manipulated through auxiliary functions:
 .. code-block:: pseudo
 
    func push_ctrl(opcode : opcode, in : list(val_type), out : list(val_type)) =
-     let frame = ctrl_frame(opcode, in, out, vals.size(), inits.size(), false)
+     let frame = ctrl_frame(opcode, in, out, vals.size(), false)
      ctrls.push(frame)
      push_vals(in)
 
@@ -248,8 +248,7 @@ The control stack is likewise manipulated through auxiliary functions:
      error_if(ctrls.is_empty())
      let frame = ctrls[0]
      pop_vals(frame.end_types)
-     error_if(vals.size() =/= frame.val_height)
-     reset_locals(frame.init_height)
+     error_if(vals.size() =/= frame.height)
      ctrls.pop()
      return frame
 
@@ -314,27 +313,6 @@ Other instructions are checked in a similar manner.
          pop_val(t)
          pop_val(t)
          push_val(t)
-
-       case (ref.is_null)
-         pop_ref()
-         push_val(I32)
-
-       case (ref.as_non_null)
-         let rt = pop_ref()
-         push_val(Ref(rt.heap, false))
-
-       case (ref.test rt)
-         validate_ref_type(rt)
-         pop_val(Ref(top_heap_type(rt), true))
-         push_val(I32)
-
-       case (local.get x)
-         get_local(x)
-         push_val(locals[x])
-
-       case (local.set x)
-         pop_val(locals[x])
-         set_local(x)
 
        case (unreachable)
          unreachable()
