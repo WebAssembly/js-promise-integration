@@ -2127,9 +2127,7 @@ Control Instructions
 
 * The label :math:`C.\CLABELS[l_N]` must be defined in the context.
 
-* The :ref:`label <syntax-label>` :math:`C.\CLABELS[l_N]` must be defined in the context.
-
-* For each :ref:`label <syntax-label>` :math:`l_i` in :math:`l^\ast`,
+* For all :math:`l_i` in :math:`l^\ast`,
   the label :math:`C.\CLABELS[l_i]` must be defined in the context.
 
 * There must be a :ref:`result type <syntax-resulttype>` :math:`[t^\ast]`, such that:
