@@ -331,6 +331,25 @@ let type_externop op =
   | Internalize -> ExternHT, AnyHT
   | Externalize -> AnyHT, ExternHT
 
+let num_lanes = function
+  | Values.V128 laneop -> V128.num_lanes laneop
+
+let lane_extractop = function
+  | Values.V128 extractop ->
+    let open V128 in let open V128Op in
+    match extractop with
+    | I8x16 (Extract (i, _)) | I16x8 (Extract (i, _))
+    | I32x4 (Extract (i, _)) | I64x2 (Extract (i, _))
+    | F32x4 (Extract (i, _)) | F64x2 (Extract (i, _)) -> i
+
+let lane_replaceop = function
+  | Values.V128 replaceop ->
+    let open V128 in let open V128Op in
+    match replaceop with
+    | I8x16 (Replace i) | I16x8 (Replace i)
+    | I32x4 (Replace i) | I64x2 (Replace i)
+    | F32x4 (Replace i) | F64x2 (Replace i) -> i
+
 
 (* Expressions *)
 
@@ -910,6 +929,74 @@ let rec check_instr (c : context) (e : instr) (s : infer_result_type) : infer_in
     require (lane_replaceop replaceop < num_lanes replaceop) e.at
       "invalid lane index";
     [t1; t2] --> [t1], []
+
+  | VecConst v ->
+    let t = VecType (type_vec v.it) in
+    [] --> [t]
+
+  | VecTest testop ->
+    let t = VecType (type_vec testop) in
+    [t] --> [NumType I32Type]
+
+  | VecUnary unop ->
+    let t = VecType (type_vec unop) in
+    [t] --> [t]
+
+  | VecBinary binop ->
+    check_vec_binop binop e.at;
+    let t = VecType (type_vec binop) in
+    [t; t] --> [t]
+
+  | VecCompare relop ->
+    let t = VecType (type_vec relop) in
+    [t; t] --> [t]
+
+  | VecConvert cvtop ->
+    let t = VecType (type_vec cvtop) in
+    [t] --> [t]
+
+  | VecShift shiftop ->
+    let t = VecType (type_vec shiftop) in
+    [t; NumType I32Type] --> [VecType V128Type]
+
+  | VecBitmask bitmaskop ->
+    let t = VecType (type_vec bitmaskop) in
+    [t] --> [NumType I32Type]
+
+  | VecTestBits vtestop ->
+    let t = VecType (type_vec vtestop) in
+    [t] --> [NumType I32Type]
+
+  | VecUnaryBits vunop ->
+    let t = VecType (type_vec vunop) in
+    [t] --> [t]
+
+  | VecBinaryBits vbinop ->
+    let t = VecType (type_vec vbinop) in
+    [t; t] --> [t]
+
+  | VecTernaryBits vternop ->
+    let t = VecType (type_vec vternop) in
+    [t; t; t] --> [t]
+
+  | VecSplat splatop ->
+    let t1 = type_vec_lane splatop in
+    let t2 = VecType (type_vec splatop) in
+    [NumType t1] --> [t2]
+
+  | VecExtract extractop ->
+    let t = VecType (type_vec extractop) in
+    let t2 = type_vec_lane extractop in
+    require (lane_extractop extractop < num_lanes extractop) e.at
+      "invalid lane index";
+    [t] --> [NumType t2]
+
+  | VecReplace replaceop ->
+    let t = VecType (type_vec replaceop) in
+    let t2 = type_vec_lane replaceop in
+    require (lane_replaceop replaceop < num_lanes replaceop) e.at
+      "invalid lane index";
+    [t; NumType t2] --> [t]
 
 and check_seq (c : context) (s : infer_result_type) (es : instr list)
   : infer_result_type * idx list =

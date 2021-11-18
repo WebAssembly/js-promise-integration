@@ -179,11 +179,24 @@ float:  <num>.<num>?(e|E <num>)? | 0x<hexnum>.<hexnum>?(p|P <num>)?
 name:   $(<letter> | <digit> | _ | . | + | - | * | / | \ | ^ | ~ | = | < | > | ! | ? | @ | # | $ | % | & | | | : | ' | `)+
 string: "(<char> | \n | \t | \\ | \' | \" | \<hex><hex> | \u{<hex>+})*"
 
+num_type: i32 | i64 | f32 | f64
+vec_type: v128
+vec_shape: i8x16 | i16x8 | i32x4 | i64x2 | f32x4 | f64x2 | v128
+ref_kind: func | extern
+ref_type: funcref | externref
+val_type: <num_type> | <vec_type> | <ref_type>
+block_type : ( result <val_type>* )*
+func_type:   ( type <var> )? <param>* <result>*
+global_type: <val_type> | ( mut <val_type> )
+table_type:  <nat> <nat>? <ref_type>
+memory_type: <nat> <nat>?
+
 num: <int> | <float>
 var: <nat> | <name>
 
 unop:  ctz | clz | popcnt | ...
 binop: add | sub | mul | ...
+testop: eqz
 relop: eq | ne | lt | ...
 sign:  s | u
 offset: offset=<nat>

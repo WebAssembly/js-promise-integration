@@ -23,6 +23,8 @@ open Pack
 
 type void = Lib.void
 
+type void = Lib.void
+
 
 (* Operators *)
 

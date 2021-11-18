@@ -123,6 +123,8 @@ customquiettest/%:	$(NAME)
 		) || \
 		cat $(@F).out || rm $(@F).out || exit 1
 
+smallinttest:	smallint
+		@./smallint.native
 
 # Packaging
 
