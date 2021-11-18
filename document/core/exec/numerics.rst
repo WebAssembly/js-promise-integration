@@ -209,6 +209,31 @@ When a number is stored into :ref:`memory <syntax-mem>`, it is converted into a 
 Again these functions are invertible bijections.
 
 
+.. index:: numeric vectors, shape
+.. _aux-lanes:
+
+Vectors
+.......
+
+Numeric vectors have the same underlying representation as an |i128|. They can also be interpreted as a sequence of numeric values packed into a |V128| with a particular |shape|.
+
+.. math::
+   \begin{array}{l}
+   \begin{array}{lll@{\qquad}l}
+   \lanes_{t\K{x}N}(c) &=&
+     c_0~\dots~c_{N-1} \\
+   \end{array}
+   \\ \qquad
+     \begin{array}[t]{@{}r@{~}l@{}}
+     (\where & B = |t| / 8 \\
+     \wedge & b^{16} = bytes_{\i128}(c) \\
+     \wedge & c_i = \bytes_{t}^{-1}(b^{16}[i \cdot B \slice B]))
+     \end{array}
+   \end{array}
+
+These functions are bijections, so they are invertible.
+
+
 .. index:: integer
 .. _int-ops:
 
@@ -829,6 +854,208 @@ The integer result of predicates -- i.e., :ref:`tests <syntax-testop>` and :ref:
    \begin{array}{@{}lcll}
    \imaxs_N(i_1, i_2) &=& i_1 & (\iff \igts_N(i_1, i_2) = 1)\\
    \imaxs_N(i_1, i_2) &=& i_2 & (\otherwise)
+   \end{array}
+
+
+.. _op-iadd_sat_u:
+
+:math:`\iaddsatu_N(i_1, i_2)`
+.............................
+
+* Let :math:`i` be the result of adding :math:`i_1` and :math:`i_2`.
+
+* Return :math:`\satu_N(i)`.
+
+.. math::
+   \begin{array}{lll@{\qquad}l}
+   \iaddsatu_N(i_1, i_2) &=& \satu_N(i_1 + i_2)
+   \end{array}
+
+
+.. _op-iadd_sat_s:
+
+:math:`\iaddsats_N(i_1, i_2)`
+.............................
+
+* Let :math:`j_1` be the signed interpretation of :math:`i_1`
+
+* Let :math:`j_2` be the signed interpretation of :math:`i_2`
+
+* Let :math:`j` be the result of adding :math:`j_1` and :math:`j_2`.
+
+* Return :math:`\sats_N(j)`.
+
+.. math::
+   \begin{array}{lll@{\qquad}l}
+   \iaddsats_N(i_1, i_2) &=& \sats_N(\signed_N(i_1) + \signed_N(i_2))
+   \end{array}
+
+
+.. _op-isub_sat_u:
+
+:math:`\isubsatu_N(i_1, i_2)`
+.............................
+
+* Let :math:`i` be the result of subtracting :math:`i_2` from :math:`i_1`.
+
+* Return :math:`\satu_N(i)`.
+
+.. math::
+   \begin{array}{lll@{\qquad}l}
+   \isubsatu_N(i_1, i_2) &=& \satu_N(i_1 - i_2)
+   \end{array}
+
+
+.. _op-isub_sat_s:
+
+:math:`\isubsats_N(i_1, i_2)`
+.............................
+
+* Let :math:`j_1` be the signed interpretation of :math:`i_1`
+
+* Let :math:`j_2` be the signed interpretation of :math:`i_2`
+
+* Let :math:`j` be the result of subtracting :math:`j_2` from :math:`j_1`.
+
+* Return :math:`\sats_N(j)`.
+
+.. math::
+   \begin{array}{lll@{\qquad}l}
+   \isubsats_N(i_1, i_2) &=& \sats_N(\signed_N(i_1) - \signed_N(i_2))
+   \end{array}
+
+
+.. _op-iavgr_u:
+
+:math:`\iavgru_N(i_1, i_2)`
+...........................
+
+* Let :math:`j` be the result of adding :math:`i_1`, :math:`i_2`, and :math:`1`.
+
+* Return the result of dividing :math:`j` by :math:`2`, truncated toward zero.
+
+.. math::
+   \begin{array}{lll@{\qquad}l}
+   \iavgru_N(i_1, i_2) &=& \trunc((i_1 + i_2 + 1) / 2)
+   \end{array}
+
+
+.. _op-iq15mulrsat_s:
+
+:math:`\iq15mulrsats_N(i_1, i_2)`
+.................................
+
+* Return the result of :math:`\sats_N(\ishrs_N(i_1 \cdot i_2 + 2^{14}, 15))`.
+
+.. math::
+   \begin{array}{lll@{\qquad}l}
+   \iq15mulrsats_N(i_1, i_2) &=& \sats_N(\ishrs_N(i_1 \cdot i_2 + 2^{14}, 15))
+   \end{array}
+
+
+.. _op-ibitselect:
+
+:math:`\ibitselect_N(i_1, i_2, i_3)`
+....................................
+
+* Let :math:`j_1` be the bitwise conjunction of :math:`i_1` and :math:`i_3`.
+
+* Let :math:`j_3'` be the bitwise negation of :math:`i_3`.
+
+* Let :math:`j_2` be the bitwise conjunction of :math:`i_2` and :math:`j_3'`.
+
+* Return the bitwise disjunction of :math:`j_1` and :math:`j_2`.
+
+.. math::
+   \begin{array}{@{}lcll}
+   \ibitselect_N(i_1, i_2, i_3) &=& \ior_N(\iand_N(i_1, i_3), \iand_N(i_2, \inot_N(i_3)))
+   \end{array}
+
+
+.. _op-iabs:
+
+:math:`\iabs_N(i)`
+..................
+
+* Let :math:`j` be the :ref:`signed interpretation <aux-signed>` of :math:`i`.
+
+* If :math:`j` greater than or equal to :math:`0`, then return :math:`i`.
+
+* Else return the negation of `j`, modulo :math:`2^N`.
+
+.. math::
+   \begin{array}{@{}lcll}
+   \iabs_N(i) &=& i & (\iff \signed_N(i) \ge 0) \\
+   \iabs_N(i) &=& -\signed_N(i) \mod 2^N & (\otherwise) \\
+   \end{array}
+
+
+.. _op-ineg:
+
+:math:`\ineg_N(i)`
+..................
+
+* Return the result of negating :math:`i`, modulo :math:`2^N`.
+
+.. math::
+   \begin{array}{@{}lcll}
+   \ineg_N(i) &=& (2^N - i) \mod 2^N
+   \end{array}
+
+
+.. _op-imin_u:
+
+:math:`\iminu_N(i_1, i_2)`
+..........................
+
+* Return :math:`i_1` if :math:`\iltu_N(i_1, i_2)` is :math:`1`, return :math:`i_2` otherwise.
+
+.. math::
+   \begin{array}{@{}lcll}
+   \iminu_N(i_1, i_2) &=& i_1 & (\iff \iltu_N(i_1, i_2) = 1)\\
+   \iminu_N(i_1, i_2) &=& i_2 & (\otherwise)
+   \end{array}
+
+
+.. _op-imin_s:
+
+:math:`\imins_N(i_1, i_2)`
+..........................
+
+* Return :math:`i_1` if :math:`\ilts_N(i_1, i_2)` is :math:`1`, return :math:`i_2` otherwise.
+
+.. math::
+   \begin{array}{@{}lcll}
+   \iminu_N(i_1, i_2) &=& i_1 & (\iff \ilts_N(i_1, i_2) = 1)\\
+   \iminu_N(i_1, i_2) &=& i_2 & (\otherwise)
+   \end{array}
+
+
+.. _op-imax_u:
+
+:math:`\imaxu_N(i_1, i_2)`
+..........................
+
+* Return :math:`i_1` if :math:`\igtu_N(i_1, i_2)` is :math:`1`, return :math:`i_2` otherwise.
+
+.. math::
+   \begin{array}{@{}lcll}
+   \iminu_N(i_1, i_2) &=& i_1 & (\iff \igtu_N(i_1, i_2) = 1)\\
+   \iminu_N(i_1, i_2) &=& i_2 & (\otherwise)
+   \end{array}
+
+
+.. _op-imax_s:
+
+:math:`\imaxs_N(i_1, i_2)`
+..........................
+
+* Return :math:`i_1` if :math:`\igts_N(i_1, i_2)` is :math:`1`, return :math:`i_2` otherwise.
+
+.. math::
+   \begin{array}{@{}lcll}
+   \iminu_N(i_1, i_2) &=& i_1 & (\iff \igts_N(i_1, i_2) = 1)\\
+   \iminu_N(i_1, i_2) &=& i_2 & (\otherwise)
    \end{array}
 
 
