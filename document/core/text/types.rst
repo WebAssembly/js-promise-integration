@@ -31,37 +31,8 @@ Vector Types
 
 .. math::
    \begin{array}{llcll@{\qquad\qquad}l}
-   \production{vector type} & \Tvectype_I &::=&
+   \production{vector type} & \Tvectype &::=&
      \text{v128} &\Rightarrow& \V128 \\
-   \end{array}
-
-
-.. index:: heap type
-   pair: text format; heap type
-.. _text-heaptype:
-.. _text-absheaptype:
-
-Heap Types
-~~~~~~~~~~
-
-.. math::
-   \begin{array}{llrll@{\qquad\qquad}l}
-   \production{abstract heap type} & \Tabsheaptype &::=&
-     \text{any} &\Rightarrow& \ANY \\ &&|&
-     \text{eq} &\Rightarrow& \EQT \\ &&|&
-     \text{i31} &\Rightarrow& \I31 \\ &&|&
-     \text{struct} &\Rightarrow& \STRUCT \\ &&|&
-     \text{array} &\Rightarrow& \ARRAY \\ &&|&
-     \text{none} &\Rightarrow& \NONE \\ &&|&
-     \text{func} &\Rightarrow& \FUNC \\ &&|&
-     \text{nofunc} &\Rightarrow& \NOFUNC \\ &&|&
-     \text{extern} &\Rightarrow& \EXTERN \\ &&|&
-     \text{noexn} &\Rightarrow& \NOEXN \\ &&|&
-     \text{exn} &\Rightarrow& \EXN \\ &&|&
-     \text{noextern} &\Rightarrow& \NOEXTERN \\
-   \production{heap type} & \Theaptype_I &::=&
-     t{:}\Tabsheaptype &\Rightarrow& y \\ &&|&
-     x{:}\Ttypeidx_I &\Rightarrow& x \\
    \end{array}
 
 
@@ -113,10 +84,10 @@ Value Types
 
 .. math::
    \begin{array}{llcll@{\qquad\qquad}l}
-   \production{value type} & \Tvaltype_I &::=&
-     t{:}\Tnumtype_I &\Rightarrow& t \\ &&|&
-     t{:}\Tvectype_I &\Rightarrow& t \\ &&|&
-     t{:}\Treftype_I &\Rightarrow& t \\
+   \production{value type} & \Tvaltype &::=&
+     t{:}\Tnumtype &\Rightarrow& t \\ &&|&
+     t{:}\Tvectype &\Rightarrow& t \\ &&|&
+     t{:}\Treftype &\Rightarrow& t \\
    \end{array}
 
 

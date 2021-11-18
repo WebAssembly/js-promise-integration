@@ -1,8 +1,11 @@
 (* Generic Types *)
 
-type type_idx = int32
-type local_idx = int32
-type name = Utf8.unicode
+type num_type = I32Type | I64Type | F32Type | F64Type
+type vec_type = V128Type
+type ref_type = FuncRefType | ExternRefType
+type value_type = NumType of num_type | VecType of vec_type | RefType of ref_type
+type result_type = value_type list
+type func_type = FuncType of result_type * result_type
 
 type null = NoNull | Null
 type mut = Cons | Var
@@ -10,132 +13,45 @@ type init = Set | Unset
 type final = NoFinal | Final
 type 'a limits = {min : 'a; max : 'a option}
 
-type var = StatX of type_idx | RecX of int32
-
-type num_type = I32T | I64T | F32T | F64T
-type vec_type = V128T
-type heap_type =
-  | AnyHT | NoneHT | EqHT | I31HT | StructHT | ArrayHT
-  | FuncHT | NoFuncHT
-  | ExnHT | NoExnHT
-  | ExternHT | NoExternHT
-  | VarHT of var
-  | DefHT of def_type
-  | BotHT
-and ref_type = null * heap_type
-and val_type = NumT of num_type | VecT of vec_type | RefT of ref_type | BotT
-
-and result_type = val_type list
-and instr_type = InstrT of result_type * result_type * local_idx list
-
-and storage_type = ValStorageT of val_type | PackStorageT of Pack.pack_size
-and field_type = FieldT of mut * storage_type
-
-and struct_type = StructT of field_type list
-and array_type = ArrayT of field_type
-and func_type = FuncT of result_type * result_type
-
-and str_type =
-  | DefStructT of struct_type
-  | DefArrayT of array_type
-  | DefFuncT of func_type
-
-and sub_type = SubT of final * heap_type list * str_type
-and rec_type = RecT of sub_type list
-and def_type = DefT of rec_type * int32
-
-type table_type = TableT of Int32.t limits * ref_type
-type memory_type = MemoryT of Int32.t limits
-type global_type = GlobalT of mut * val_type
-type tag_type = TagT of def_type
-type local_type = LocalT of init * val_type
-type extern_type =
-  | ExternFuncT of def_type
-  | ExternTableT of table_type
-  | ExternMemoryT of memory_type
-  | ExternGlobalT of global_type
-  | ExternTagT of tag_type
-
-type export_type = ExportT of extern_type * name
-type import_type = ImportT of extern_type * name * name
-type module_type = ModuleT of import_type list * export_type list
+(* TODO: these types should move somewhere else *)
+type pack_size = Pack8 | Pack16 | Pack32 | Pack64
+type extension = SX | ZX
+type pack_shape = Pack8x8 | Pack16x4 | Pack32x2
+type vec_extension =
+  | ExtLane of pack_shape * extension
+  | ExtSplat
+  | ExtZero
 
 
 (* Attributes *)
 
 let num_size = function
-  | I32T | F32T -> 4
-  | I64T | F64T -> 8
+  | I32Type | F32Type -> 4
+  | I64Type | F64Type -> 8
 
 let vec_size = function
-  | V128T -> 16
+  | V128Type -> 16
 
-let val_size = function
-  | NumT t -> num_size t
-  | VecT t -> vec_size t
-  | RefT _ | BotT -> failwith "val_size"
+let packed_size = function
+  | Pack8 -> 1
+  | Pack16 -> 2
+  | Pack32 -> 4
+  | Pack64 -> 8
 
-let storage_size = function
-  | ValStorageT t -> val_size t
-  | PackStorageT p -> Pack.packed_size p
-
-let is_stat_var = function StatX _ -> true | _ -> false
-let is_rec_var = function RecX _ -> true | _ -> false
-
-let as_stat_var = function StatX x -> x | _ -> assert false
-let as_rec_var = function RecX x -> x | _ -> assert false
-
+let packed_shape_size = function
+  | Pack8x8 | Pack16x4 | Pack32x2 -> 8
 
 let is_num_type = function
-  | NumT _ | BotT -> true
+  | NumType _ -> true
   | _ -> false
 
 let is_vec_type = function
-  | VecT _ | BotT -> true
+  | VecType _ -> true
   | _ -> false
 
 let is_ref_type = function
-  | RefT _ | BotT -> true
+  | RefType _ -> true
   | _ -> false
-
-let is_packed_storage_type = function
-  | ValStorageT _ -> false
-  | PackStorageT _ -> true
-
-
-let defaultable = function
-  | NumT _ -> true
-  | VecT _ -> true
-  | RefT (nul, _) -> nul = Null
-  | BotT -> assert false
-
-
-(* Projections *)
-
-let unpacked_storage_type = function
-  | ValStorageT t -> t
-  | PackStorageT _ -> NumT I32T
-
-let unpacked_field_type (FieldT (_mut, t)) = unpacked_storage_type t
-
-
-let as_func_str_type (st : str_type) : func_type =
-  match st with
-  | DefFuncT ft -> ft
-  | _ -> assert false
-
-let as_struct_str_type (st : str_type) : struct_type =
-  match st with
-  | DefStructT st -> st
-  | _ -> assert false
-
-let as_array_str_type (st : str_type) : array_type =
-  match st with
-  | DefArrayT at -> at
-  | _ -> assert false
-
-let extern_type_of_import_type (ImportT (et, _, _)) = et
-let extern_type_of_export_type (ExportT (et, _)) = et
 
 
 (* Filters *)
@@ -333,7 +249,11 @@ let string_of_num_type = function
   | F64T -> "f64"
 
 let string_of_vec_type = function
-  | V128T -> "v128"
+  | V128Type -> "v128"
+
+let string_of_ref_type = function
+  | FuncRefType -> "funcref"
+  | ExternRefType -> "externref"
 
 let rec string_of_heap_type = function
   | AnyHT -> "any"
@@ -352,8 +272,10 @@ let rec string_of_heap_type = function
   | DefHT dt -> "(" ^ string_of_def_type dt ^ ")"
   | BotHT -> "something"
 
-and string_of_ref_type = function
-  | (nul, t) -> "(ref " ^ string_of_null nul ^ string_of_heap_type t ^ ")"
+let string_of_value_type = function
+  | NumType t -> string_of_num_type t
+  | VecType t -> string_of_vec_type t
+  | RefType t -> string_of_ref_type t
 
 and string_of_val_type = function
   | NumT t -> string_of_num_type t

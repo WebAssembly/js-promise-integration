@@ -38,7 +38,7 @@ let numeric_error at = function
   | Ixx.Overflow -> "integer overflow"
   | Ixx.DivideByZero -> "integer divide by zero"
   | Ixx.InvalidConversion -> "invalid conversion to integer"
-  | Value.TypeError (i, v, t) ->
+  | Values.TypeError (i, v, t) ->
     Crash.error at
       ("type error, expected " ^ string_of_num_type t ^ " as operand " ^
        string_of_int i ^ ", got " ^ string_of_num_type (type_of_num v))
@@ -438,8 +438,8 @@ let rec step (c : config) : config =
         Elem.drop seg;
         vs, []
 
-      | Load (x, {offset; ty; pack; _}), Num (I32 i) :: vs' ->
-        let mem = memory c.frame.inst x in
+      | Load {offset; ty; pack; _}, Num (I32 i) :: vs' ->
+        let mem = memory frame.inst (0l @@ e.at) in
         let a = I64_convert.extend_i32_u i in
         (try
           let n =
@@ -449,8 +449,8 @@ let rec step (c : config) : config =
           in Num n :: vs', []
         with exn -> vs', [Trapping (memory_error e.at exn) @@ e.at])
 
-      | Store (x, {offset; pack; _}), Num n :: Num (I32 i) :: vs' ->
-        let mem = memory c.frame.inst x in
+      | Store {offset; pack; _}, Num n :: Num (I32 i) :: vs' ->
+        let mem = memory frame.inst (0l @@ e.at) in
         let a = I64_convert.extend_i32_u i in
         (try
           (match pack with
@@ -460,48 +460,49 @@ let rec step (c : config) : config =
           vs', []
         with exn -> vs', [Trapping (memory_error e.at exn) @@ e.at]);
 
-      | VecLoad (x, {offset; ty; pack; _}), Num (I32 i) :: vs' ->
-        let mem = memory c.frame.inst x in
-        let a = I64_convert.extend_i32_u i in
+      | VecLoad {offset; ty; pack; _}, Num (I32 i) :: vs' ->
+        let mem = memory frame.inst (0l @@ e.at) in
+        let addr = I64_convert.extend_i32_u i in
         (try
           let v =
             match pack with
-            | None -> Memory.load_vec mem a offset ty
-            | Some (sz, ext) -> Memory.load_vec_packed sz ext mem a offset ty
+            | None -> Memory.load_vec mem addr offset ty
+            | Some (sz, ext) ->
+              Memory.load_vec_packed sz ext mem addr offset ty
           in Vec v :: vs', []
         with exn -> vs', [Trapping (memory_error e.at exn) @@ e.at])
 
-      | VecStore (x, {offset; _}), Vec v :: Num (I32 i) :: vs' ->
-        let mem = memory c.frame.inst x in
+      | VecStore {offset; _}, Vec v :: Num (I32 i) :: vs' ->
+        let mem = memory frame.inst (0l @@ e.at) in
         let addr = I64_convert.extend_i32_u i in
         (try
           Memory.store_vec mem addr offset v;
           vs', []
         with exn -> vs', [Trapping (memory_error e.at exn) @@ e.at]);
 
-      | VecLoadLane (x, {offset; ty; pack; _}, j), Vec (V128 v) :: Num (I32 i) :: vs' ->
-        let mem = memory c.frame.inst x in
+      | VecLoadLane ({offset; ty; pack; _}, j), Vec (V128 v) :: Num (I32 i) :: vs' ->
+        let mem = memory frame.inst (0l @@ e.at) in
         let addr = I64_convert.extend_i32_u i in
         (try
           let v =
             match pack with
             | Pack8 ->
               V128.I8x16.replace_lane j v
-                (I32Num.of_num 0 (Memory.load_num_packed Pack8 SX mem addr offset I32T))
+                (I32Num.of_num 0 (Memory.load_num_packed Pack8 SX mem addr offset I32Type))
             | Pack16 ->
               V128.I16x8.replace_lane j v
-                (I32Num.of_num 0 (Memory.load_num_packed Pack16 SX mem addr offset I32T))
+                (I32Num.of_num 0 (Memory.load_num_packed Pack16 SX mem addr offset I32Type))
             | Pack32 ->
               V128.I32x4.replace_lane j v
-                (I32Num.of_num 0 (Memory.load_num mem addr offset I32T))
+                (I32Num.of_num 0 (Memory.load_num mem addr offset I32Type))
             | Pack64 ->
               V128.I64x2.replace_lane j v
-                (I64Num.of_num 0 (Memory.load_num mem addr offset I64T))
+                (I64Num.of_num 0 (Memory.load_num mem addr offset I64Type))
           in Vec (V128 v) :: vs', []
         with exn -> vs', [Trapping (memory_error e.at exn) @@ e.at])
 
-      | VecStoreLane (x, {offset; ty; pack; _}, j), Vec (V128 v) :: Num (I32 i) :: vs' ->
-        let mem = memory c.frame.inst x in
+      | VecStoreLane ({offset; ty; pack; _}, j), Vec (V128 v) :: Num (I32 i) :: vs' ->
+        let mem = memory frame.inst (0l @@ e.at) in
         let addr = I64_convert.extend_i32_u i in
         (try
           (match pack with
@@ -517,8 +518,8 @@ let rec step (c : config) : config =
           vs', []
         with exn -> vs', [Trapping (memory_error e.at exn) @@ e.at])
 
-      | MemorySize x, vs ->
-        let mem = memory c.frame.inst x in
+      | MemorySize, vs ->
+        let mem = memory frame.inst (0l @@ e.at) in
         Num (I32 (Memory.size mem)) :: vs, []
 
       | MemoryGrow x, Num (I32 delta) :: vs' ->
@@ -539,7 +540,7 @@ let rec step (c : config) : config =
             Plain (Const (I32 i @@ e.at));
             Plain (Const (k @@ e.at));
             Plain (Store
-              (x, {ty = I32T; align = 0; offset = 0l; pack = Some Pack8}));
+              {ty = I32Type; align = 0; offset = 0l; pack = Some Pack8});
             Plain (Const (I32 (I32.add i 1l) @@ e.at));
             Plain (Const (k @@ e.at));
             Plain (Const (I32 (I32.sub n 1l) @@ e.at));
@@ -556,9 +557,9 @@ let rec step (c : config) : config =
             Plain (Const (I32 d @@ e.at));
             Plain (Const (I32 s @@ e.at));
             Plain (Load
-              (y, {ty = I32T; align = 0; offset = 0l; pack = Some (Pack8, ZX)}));
+              {ty = I32Type; align = 0; offset = 0l; pack = Some (Pack8, ZX)});
             Plain (Store
-              (x, {ty = I32T; align = 0; offset = 0l; pack = Some Pack8}));
+              {ty = I32Type; align = 0; offset = 0l; pack = Some Pack8});
             Plain (Const (I32 (I32.add d 1l) @@ e.at));
             Plain (Const (I32 (I32.add s 1l) @@ e.at));
             Plain (Const (I32 (I32.sub n 1l) @@ e.at));
@@ -575,8 +576,10 @@ let rec step (c : config) : config =
               (x, {ty = I32T; align = 0; offset = 0l; pack = Some Pack8}));
             Plain (Const (I32 d @@ e.at));
             Plain (Const (I32 s @@ e.at));
-            Plain (Const (I32 n' @@ e.at));
-            Plain (MemoryCopy (x, y));
+            Plain (Load
+              {ty = I32Type; align = 0; offset = 0l; pack = Some (Pack8, ZX)});
+            Plain (Store
+              {ty = I32Type; align = 0; offset = 0l; pack = Some Pack8});
           ]
 
       | MemoryInit (x, y), Num (I32 n) :: Num (I32 s) :: Num (I32 d) :: vs' ->
@@ -592,7 +595,7 @@ let rec step (c : config) : config =
             Plain (Const (I32 d @@ e.at));
             Plain (Const (I32 (I32.of_int_u (Char.code b)) @@ e.at));
             Plain (Store
-              (x, {ty = I32T; align = 0; offset = 0l; pack = Some Pack8}));
+              {ty = I32Type; align = 0; offset = 0l; pack = Some Pack8});
             Plain (Const (I32 (I32.add d 1l) @@ e.at));
             Plain (Const (I32 (I32.add s 1l) @@ e.at));
             Plain (Const (I32 (I32.sub n 1l) @@ e.at));

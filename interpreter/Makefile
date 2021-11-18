@@ -14,22 +14,23 @@ LIB =		$(NAME)
 JSLIB =		wast.js
 ZIP =		$(NAME).zip
 
-BUILDDIR =	_build/default
-
-JS =		# set to JS shell command to run JS tests, empty to skip
+DIRS =		util syntax binary text valid runtime exec script host main tests
+LIBS =		bigarray
+FLAGS = 	-lexflags -ml -cflags '-w +a-4-27-42-44-45 -warn-error +a-3'
+OCBA =		ocamlbuild $(FLAGS) $(DIRS:%=-I %)
+OCB =		$(OCBA) $(LIBS:%=-libs %)
+JS =		# set to JS shell command to run JS tests
 
 
 # Main targets
 
-.PHONY:		default all ci jslib zip
-
-default:	$(NAME)
-all:		default alltest
-alltest:	unittest partest custompartest
-ci:		all jslib zip
+.PHONY:		default opt unopt libopt libunopt jslib all land zip smallint
 
 jslib:		$(JSLIB)
-zip:		$(ZIP)
+all:		unopt opt libunopt libopt test
+land:		$(WINMAKE) all
+zip: 		$(ZIP)
+smallint:	smallint.native
 
 
 # Building
@@ -45,6 +46,12 @@ $(JSLIB):
 	rm -f $@
 	dune build $(@:%.js=%.bc.js)
 	ln $(BUILDDIR)/$(@:%.js=%.bc.js) $@
+
+.PHONY:		smallint.byte smallint.native
+smallint.byte: _tags
+		$(OCB) -quiet $@
+smallint.native: _tags
+		$(OCB) -quiet $@
 
 
 # Unit tests
@@ -71,19 +78,28 @@ unittest/%:
 # Core test suite
 
 TESTDIR =	../test/core
-TESTFILES =	$(shell cd $(TESTDIR) > /dev/null; ls *.wast; ls [a-z]*/*.wast)
+# Skip _output directory, since that's a tmp directory, and list all other wast files.
+TESTFILES =	$(shell cd $(TESTDIR); ls *.wast; ls [a-z]*/*.wast)
 TESTS =		$(TESTFILES:%.wast=%)
 
 .PHONY: test partest quiettest
 
-test: $(NAME)
-	$(TESTDIR)/run.py --wasm `pwd`/$(NAME) $(if $(JS),--js '$(JS)',)
+test:		$(OPT) smallint
+		$(TESTDIR)/run.py --wasm `pwd`/$(OPT) $(if $(JS),--js '$(JS)',)
+		./smallint.native
+debugtest:	$(UNOPT) smallint
+		$(TESTDIR)/run.py --wasm `pwd`/$(UNOPT) $(if $(JS),--js '$(JS)',)
+		./smallint.native
 
-test/%: $(NAME)
-	$(TESTDIR)/run.py --wasm `pwd`/$(NAME) $(if $(JS),--js '$(JS)',) $(TESTDIR)/$*.wast
+test/%:		$(OPT)
+		$(TESTDIR)/run.py --wasm `pwd`/$(OPT) $(if $(JS),--js '$(JS)',) $(TESTDIR)/$*.wast
+debugtest/%:	$(UNOPT)
+		$(TESTDIR)/run.py --wasm `pwd`/$(UNOPT) $(if $(JS),--js '$(JS)',) $(TESTDIR)/$*.wast
 
-run/%: $(NAME)
-	./$(NAME) $(TESTDIR)/$*.wast
+run/%:		$(OPT)
+		./$(OPT) $(TESTDIR)/$*.wast
+debug/%:	$(UNOPT)
+		./$(UNOPT) $(TESTDIR)/$*.wast
 
 partest: $(NAME)
 	make -j10 quiettest
@@ -123,11 +139,13 @@ custompartest: 	$(CUSTOMTESTS:%=customquiettest/%)
 
 customquiettest/%:	$(NAME)
 		@ ( \
-		  $(TESTDIR)/run.py 2>$(@F).out --wasm `pwd`/$(NAME) --opts '$(CUSTOMOPTS)' $(if $(JS),--js '$(JS)',) $(CUSTOMTESTDIR)/$*.wast && \
+		  $(TESTDIR)/run.py 2>$(@F).out --wasm `pwd`/$(OPT) $(if $(JS),--js '$(JS)',) $(TESTDIR)/$*.wast && \
 		  rm $(@F).out \
 		) || \
 		cat $(@F).out || rm $(@F).out || exit 1
 
+smallinttest:	smallint
+		@./smallint.native
 
 # Packaging
 

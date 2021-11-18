@@ -176,22 +176,21 @@ let rec instr (e : instr) =
   | LocalGet x | LocalSet x | LocalTee x -> locals (idx x)
   | GlobalGet x | GlobalSet x -> globals (idx x)
   | TableGet x | TableSet x | TableSize x | TableGrow x | TableFill x ->
-    tables (idx x)
-  | TableCopy (x, y) -> tables (idx x) ++ tables (idx y)
-  | TableInit (x, y) -> tables (idx x) ++ elems (idx y)
-  | ElemDrop x -> elems (idx x)
-  | Load (x, _) | Store (x, _) | VecLoad (x, _) | VecStore (x, _)
-  | VecLoadLane (x, _, _) | VecStoreLane (x, _, _)
-  | MemorySize x | MemoryGrow x | MemoryFill x ->
-    memories (idx x)
-  | MemoryCopy (x, y) -> memories (idx x) ++ memories (idx y)
-  | MemoryInit (x, y) -> memories (idx x) ++ datas (idx y)
-  | DataDrop x -> datas (idx x)
+    tables (var x)
+  | TableCopy (x, y) -> tables (var x) ++ tables (var y)
+  | TableInit (x, y) -> tables (var x) ++ elems (var y)
+  | ElemDrop x -> elems (var x)
+  | Load _ | Store _
+  | VecLoad _ | VecStore _ | VecLoadLane _ | VecStoreLane _
+  | MemorySize | MemoryGrow | MemoryCopy | MemoryFill ->
+    memories zero
   | VecConst _ | VecTest _ | VecUnary _ | VecBinary _ | VecCompare _
   | VecConvert _ | VecShift _ | VecBitmask _
   | VecTestBits _ | VecUnaryBits _ | VecBinaryBits _ | VecTernaryBits _
   | VecSplat _ | VecExtract _ | VecReplace _ ->
-    empty
+    memories zero
+  | MemoryInit x -> memories zero ++ datas (var x)
+  | DataDrop x -> datas (var x)
 
 and block (es : instr list) =
   let free = list instr es in {free with labels = shift free.labels}

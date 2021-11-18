@@ -171,7 +171,7 @@ Occasionally, it is convenient to group operators together according to the foll
    \end{array}
 
 
-.. index:: ! vector instruction, numeric vector, number, value, value type, SIMD
+.. index:: ! vector instruction, numeric vectors, number, value, value type, SIMD
    pair: abstract syntax; instruction
 .. _syntax-laneidx:
 .. _syntax-shape:
@@ -195,10 +195,10 @@ Occasionally, it is convenient to group operators together according to the foll
 Vector Instructions
 ~~~~~~~~~~~~~~~~~~~
 
-Vector instructions (also known as *SIMD* instructions, *single instruction multiple data*) provide basic operations over :ref:`values <syntax-value>` of :ref:`vector type <syntax-vectype>`.
+Vector instructions (also known as *SIMD* instructions, single data multiple value) provide basic operations over :ref:`values <syntax-value>` of :ref:`vector type <syntax-vectype>`.
 
 .. math::
-   \begin{array}{llrl}
+   \begin{array}{llcl}
    \production{ishape} & \ishape &::=&
      \K{i8x16} ~|~ \K{i16x8} ~|~ \K{i32x4} ~|~ \K{i64x2} \\
    \production{fshape} & \fshape &::=&
@@ -208,10 +208,6 @@ Vector instructions (also known as *SIMD* instructions, *single instruction mult
    \production{half} & \half &::=&
      \K{low} ~|~ \K{high} \\
    \production{lane index} & \laneidx &::=& \u8 \\
-   \end{array}
-
-.. math::
-   \begin{array}{llrl}
    \production{instruction} & \instr &::=&
      \dots \\&&|&
      \K{v128.}\VCONST~\i128 \\&&|&
@@ -275,10 +271,6 @@ Vector instructions (also known as *SIMD* instructions, *single instruction mult
      \K{f64x2.}\VCONVERT\K{\_low\_i32x4\_}\sx ~|~
      \K{f64x2.}\VPROMOTE\K{\_low\_f32x4} \\&&|&
      \dots \\
-   \end{array}
-
-.. math::
-   \begin{array}{llrl}
    \production{vector bitwise unary operator} & \vvunop &::=&
      \K{not} \\
    \production{vector bitwise binary operator} & \vvbinop &::=&
@@ -351,7 +343,7 @@ Operations are performed point-wise on the values of each lane.
 .. note::
    For example, the shape :math:`\K{i32x4}` interprets the operand
    as four |i32| values, packed into an |i128|.
-   The bit width of the numeric type :math:`t` times :math:`N` always is 128.
+   The bitwidth of the numeric type :math:`t` times :math:`N` always is 128.
 
 Instructions prefixed with :math:`\K{v128}` do not involve a specific interpretation, and treat the |V128| as an |i128| value or a vector of 128 individual bits.
 
@@ -391,7 +383,7 @@ Conventions
 Occasionally, it is convenient to group operators together according to the following grammar shorthands:
 
 .. math::
-   \begin{array}{llrl}
+   \begin{array}{llll}
    \production{unary operator} & \vunop &::=&
      \viunop ~|~
      \vfunop ~|~
@@ -415,7 +407,7 @@ Occasionally, it is convenient to group operators together according to the foll
    \end{array}
 
 
-.. index:: ! reference instruction, reference, null, cast, heap type, reference type
+.. index:: ! reference instruction, reference, null
    pair: abstract syntax; instruction
 .. _syntax-ref.null:
 .. _syntax-ref.func:
@@ -655,31 +647,31 @@ Instructions in this group are concerned with linear :ref:`memory <syntax-mem>`.
      8 ~|~ 16 ~|~ 32 ~|~ 64 \\
    \production{instruction} & \instr &::=&
      \dots \\&&|&
-     \K{i}\X{nn}\K{.}\LOAD~\memidx~\memarg ~|~
-     \K{f}\X{nn}\K{.}\LOAD~\memidx~\memarg \\&&|&
-     \K{v128.}\LOAD~\memidx~\memarg \\&&|&
-     \K{i}\X{nn}\K{.}\STORE~\memidx~\memarg ~|~
-     \K{f}\X{nn}\K{.}\STORE~\memidx~\memarg \\&&|&
-     \K{v128.}\STORE~\memidx~\memarg \\&&|&
-     \K{i}\X{nn}\K{.}\LOAD\K{8\_}\sx~\memidx~\memarg ~|~
-     \K{i}\X{nn}\K{.}\LOAD\K{16\_}\sx~\memidx~\memarg ~|~
-     \K{i64.}\LOAD\K{32\_}\sx~\memidx~\memarg \\&&|&
-     \K{v128.}\LOAD\K{8x8\_}\sx~\memidx~\memarg ~|~
-     \K{v128.}\LOAD\K{16x4\_}\sx~\memidx~\memarg ~|~
-     \K{v128.}\LOAD\K{32x2\_}\sx~\memidx~\memarg \\&&|&
-     \K{v128.}\LOAD\K{32\_zero}~\memidx~\memarg ~|~
-     \K{v128.}\LOAD\K{64\_zero}~\memidx~\memarg \\&&|&
-     \K{v128.}\LOAD\X{ww}\K{\_splat}~\memidx~\memarg \\&&|&
-     \K{v128.}\LOAD\X{ww}\K{\_lane}~\memidx~\memarg~\laneidx ~|~
-     \K{i}\X{nn}\K{.}\STORE\K{8}~\memidx~\memarg ~|~
-     \K{i}\X{nn}\K{.}\STORE\K{16}~\memidx~\memarg ~|~
-     \K{i64.}\STORE\K{32}~\memidx~\memarg \\&&|&
-     \K{v128.}\STORE\X{ww}\K{\_lane}~\memidx~\memarg~\laneidx \\&&|&
-     \MEMORYSIZE~\memidx \\&&|&
-     \MEMORYGROW~\memidx \\&&|&
-     \MEMORYFILL~\memidx \\&&|&
-     \MEMORYCOPY~\memidx~\memidx \\&&|&
-     \MEMORYINIT~\memidx~\dataidx \\&&|&
+     \K{i}\X{nn}\K{.}\LOAD~\memarg ~|~
+     \K{f}\X{nn}\K{.}\LOAD~\memarg ~|~
+     \K{v128.}\LOAD~\memarg \\&&|&
+     \K{i}\X{nn}\K{.}\STORE~\memarg ~|~
+     \K{f}\X{nn}\K{.}\STORE~\memarg ~|~
+     \K{v128.}\STORE~\memarg \\&&|&
+     \K{i}\X{nn}\K{.}\LOAD\K{8\_}\sx~\memarg ~|~
+     \K{i}\X{nn}\K{.}\LOAD\K{16\_}\sx~\memarg ~|~
+     \K{i64.}\LOAD\K{32\_}\sx~\memarg \\&&|&
+     \K{i}\X{nn}\K{.}\STORE\K{8}~\memarg ~|~
+     \K{i}\X{nn}\K{.}\STORE\K{16}~\memarg ~|~
+     \K{i64.}\STORE\K{32}~\memarg \\&&|&
+     \K{v128.}\LOAD\K{8x8\_}\sx~\memarg ~|~
+     \K{v128.}\LOAD\K{16x4\_}\sx~\memarg ~|~
+     \K{v128.}\LOAD\K{32x2\_}\sx~\memarg \\&&|&
+     \K{v128.}\LOAD\K{32\_zero}~\memarg ~|~
+     \K{v128.}\LOAD\K{64\_zero}~\memarg \\&&|&
+     \K{v128.}\LOAD\X{ww}\K{\_splat}~\memarg \\&&|&
+     \K{v128.}\LOAD\X{ww}\K{\_lane}~\memarg~\laneidx ~|~
+     \K{v128.}\STORE\X{ww}\K{\_lane}~\memarg~\laneidx \\&&|&
+     \MEMORYSIZE \\&&|&
+     \MEMORYGROW \\&&|&
+     \MEMORYFILL \\&&|&
+     \MEMORYCOPY \\&&|&
+     \MEMORYINIT~\dataidx \\&&|&
      \DATADROP~\dataidx \\
    \end{array}
 

@@ -100,15 +100,15 @@ let rec sN n s =
   then (if b land 0x40 = 0 then x else Int64.(logor x (logxor (-1L) 0x7fL)))
   else Int64.(logor x (shift_left (sN (n - 7) s) 7))
 
-let u1 s = Int64.to_int (uN 1 s)
-let u32 s = Int64.to_int32 (uN 32 s)
-let s7 s = Int64.to_int (sN 7 s)
-let s32 s = Int64.to_int32 (sN 32 s)
-let s33 s = I32_convert.wrap_i64 (sN 33 s)
-let s64 s = sN 64 s
-let f32 s = F32.of_bits (word32 s)
-let f64 s = F64.of_bits (word64 s)
-let v128 s = V128.of_bits (get_string 16 s)
+let vu1 s = Int64.to_int (vuN 1 s)
+let vu32 s = Int64.to_int32 (vuN 32 s)
+let vs7 s = Int64.to_int (vsN 7 s)
+let vs32 s = Int64.to_int32 (vsN 32 s)
+let vs33 s = I32_convert.wrap_i64 (vsN 33 s)
+let vs64 s = vsN 64 s
+let f32 s = F32.of_bits (u32 s)
+let f64 s = F64.of_bits (u64 s)
+let v128 s = V128.of_bits (get_string (Types.vec_size Types.V128Type) s)
 
 let len32 s =
   let pos = pos s in
@@ -170,31 +170,9 @@ let num_type s =
   | _ -> error s (pos s - 1) "malformed number type"
 
 let vec_type s =
-  match s7 s with
-  | -0x05 -> V128T
+  match vs7 s with
+  | -0x05 -> V128Type
   | _ -> error s (pos s - 1) "malformed vector type"
-
-let heap_type s =
-  let pos = pos s in
-  either [
-    (fun s -> VarHT (var_type s33 s));
-    (fun s ->
-      match s7 s with
-      | -0x0c -> NoExnHT
-      | -0x0d -> NoFuncHT
-      | -0x0e -> NoExternHT
-      | -0x0f -> NoneHT
-      | -0x10 -> FuncHT
-      | -0x11 -> ExternHT
-      | -0x12 -> AnyHT
-      | -0x13 -> EqHT
-      | -0x14 -> I31HT
-      | -0x15 -> StructHT
-      | -0x16 -> ArrayHT
-      | -0x17 -> ExnHT
-      | _ -> error s pos "malformed heap type"
-    )
-  ] s
 
 let ref_type s =
   let pos = pos s in
@@ -215,38 +193,11 @@ let ref_type s =
   | -0x1d -> (Null, heap_type s)
   | _ -> error s pos "malformed reference type"
 
-let val_type s =
-  either [
-    (fun s -> NumT (num_type s));
-    (fun s -> VecT (vec_type s));
-    (fun s -> RefT (ref_type s));
-  ] s
-
-let result_type s = vec val_type s
-
-let pack_type s =
-  let pos = pos s in
-  match s7 s with
-  | -0x08 -> Pack.Pack8
-  | -0x09 -> Pack.Pack16
-  | _ -> error s pos "malformed storage type"
-
-let storage_type s =
-  either [
-    (fun s -> ValStorageT (val_type s));
-    (fun s -> PackStorageT (pack_type s));
-  ] s
-
-let field_type s =
-  let t = storage_type s in
-  let mut = mutability s in
-  FieldT (mut, t)
-
-let struct_type s =
-  StructT (vec field_type s)
-
-let array_type s =
-  ArrayT (field_type s)
+let value_type s =
+  match peek s with
+  | Some n when n >= ((-0x04) land 0x7f) -> NumType (num_type s)
+  | Some n when n >= ((-0x0f) land 0x7f) -> VecType (vec_type s)
+  | _ -> RefType (ref_type s)
 
 let func_type s =
   let ts1 = result_type s in
@@ -693,21 +644,21 @@ let rec instr s =
     )
 
   | 0xfd ->
-    (match u32 s with
-    | 0x00l -> let x, a, o = memop s in v128_load x a o
-    | 0x01l -> let x, a, o = memop s in v128_load8x8_s x a o
-    | 0x02l -> let x, a, o = memop s in v128_load8x8_u x a o
-    | 0x03l -> let x, a, o = memop s in v128_load16x4_s x a o
-    | 0x04l -> let x, a, o = memop s in v128_load16x4_u x a o
-    | 0x05l -> let x, a, o = memop s in v128_load32x2_s x a o
-    | 0x06l -> let x, a, o = memop s in v128_load32x2_u x a o
-    | 0x07l -> let x, a, o = memop s in v128_load8_splat x a o
-    | 0x08l -> let x, a, o = memop s in v128_load16_splat x a o
-    | 0x09l -> let x, a, o = memop s in v128_load32_splat x a o
-    | 0x0al -> let x, a, o = memop s in v128_load64_splat x a o
-    | 0x0bl -> let x, a, o = memop s in v128_store x a o
+    (match vu32 s with
+    | 0x00l -> let a, o = memop s in v128_load a o
+    | 0x01l -> let a, o = memop s in v128_load8x8_s a o
+    | 0x02l -> let a, o = memop s in v128_load8x8_u a o
+    | 0x03l -> let a, o = memop s in v128_load16x4_s a o
+    | 0x04l -> let a, o = memop s in v128_load16x4_u a o
+    | 0x05l -> let a, o = memop s in v128_load32x2_s a o
+    | 0x06l -> let a, o = memop s in v128_load32x2_u a o
+    | 0x07l -> let a, o = memop s in v128_load8_splat a o
+    | 0x08l -> let a, o = memop s in v128_load16_splat a o
+    | 0x09l -> let a, o = memop s in v128_load32_splat a o
+    | 0x0al -> let a, o = memop s in v128_load64_splat a o
+    | 0x0bl -> let a, o = memop s in v128_store a o
     | 0x0cl -> v128_const (at v128 s)
-    | 0x0dl -> i8x16_shuffle (List.init 16 (fun _ -> byte s))
+    | 0x0dl -> i8x16_shuffle (List.init 16 (fun x -> u8 s))
     | 0x0el -> i8x16_swizzle
     | 0x0fl -> i8x16_splat
     | 0x10l -> i16x8_splat
@@ -715,20 +666,20 @@ let rec instr s =
     | 0x12l -> i64x2_splat
     | 0x13l -> f32x4_splat
     | 0x14l -> f64x2_splat
-    | 0x15l -> let i = byte s in i8x16_extract_lane_s i
-    | 0x16l -> let i = byte s in i8x16_extract_lane_u i
-    | 0x17l -> let i = byte s in i8x16_replace_lane i
-    | 0x18l -> let i = byte s in i16x8_extract_lane_s i
-    | 0x19l -> let i = byte s in i16x8_extract_lane_u i
-    | 0x1al -> let i = byte s in i16x8_replace_lane i
-    | 0x1bl -> let i = byte s in i32x4_extract_lane i
-    | 0x1cl -> let i = byte s in i32x4_replace_lane i
-    | 0x1dl -> let i = byte s in i64x2_extract_lane i
-    | 0x1el -> let i = byte s in i64x2_replace_lane i
-    | 0x1fl -> let i = byte s in f32x4_extract_lane i
-    | 0x20l -> let i = byte s in f32x4_replace_lane i
-    | 0x21l -> let i = byte s in f64x2_extract_lane i
-    | 0x22l -> let i = byte s in f64x2_replace_lane i
+    | 0x15l -> let i = u8 s in i8x16_extract_lane_s i
+    | 0x16l -> let i = u8 s in i8x16_extract_lane_u i
+    | 0x17l -> let i = u8 s in i8x16_replace_lane i
+    | 0x18l -> let i = u8 s in i16x8_extract_lane_s i
+    | 0x19l -> let i = u8 s in i16x8_extract_lane_u i
+    | 0x1al -> let i = u8 s in i16x8_replace_lane i
+    | 0x1bl -> let i = u8 s in i32x4_extract_lane i
+    | 0x1cl -> let i = u8 s in i32x4_replace_lane i
+    | 0x1dl -> let i = u8 s in i64x2_extract_lane i
+    | 0x1el -> let i = u8 s in i64x2_replace_lane i
+    | 0x1fl -> let i = u8 s in f32x4_extract_lane i
+    | 0x20l -> let i = u8 s in f32x4_replace_lane i
+    | 0x21l -> let i = u8 s in f64x2_extract_lane i
+    | 0x22l -> let i = u8 s in f64x2_replace_lane i
     | 0x23l -> i8x16_eq
     | 0x24l -> i8x16_ne
     | 0x25l -> i8x16_lt_s
@@ -779,39 +730,39 @@ let rec instr s =
     | 0x52l -> v128_bitselect
     | 0x53l -> v128_any_true
     | 0x54l ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_load8_lane x a o lane
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_load8_lane a o lane
     | 0x55l ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_load16_lane x a o lane
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_load16_lane a o lane
     | 0x56l ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_load32_lane x a o lane
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_load32_lane a o lane
     | 0x57l ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_load64_lane x a o lane
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_load64_lane a o lane
     | 0x58l ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_store8_lane x a o lane
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_store8_lane a o lane
     | 0x59l ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_store16_lane x a o lane
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_store16_lane a o lane
     | 0x5al ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_store32_lane x a o lane
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_store32_lane a o lane
     | 0x5bl ->
-      let x, a, o = memop s in
-      let lane = byte s in
-      v128_store64_lane x a o lane
-    | 0x5cl -> let x, a, o = memop s in v128_load32_zero x a o
-    | 0x5dl -> let x, a, o = memop s in v128_load64_zero x a o
+      let a, o = memop s in
+      let lane = u8 s in
+      v128_store64_lane a o lane
+    | 0x5cl -> let a, o = memop s in v128_load32_zero a o
+    | 0x5dl -> let a, o = memop s in v128_load64_zero a o
     | 0x5el -> f32x4_demote_f64x2_zero
     | 0x5fl -> f64x2_promote_low_f32x4
     | 0x60l -> i8x16_abs
@@ -872,7 +823,6 @@ let rec instr s =
     | 0x97l -> i16x8_min_u
     | 0x98l -> i16x8_max_s
     | 0x99l -> i16x8_max_u
-    | 0x9al as n -> illegal s pos (I32.to_int_u n)
     | 0x9bl -> i16x8_avgr_u
     | 0x9cl -> i16x8_extmul_low_i8x16_s
     | 0x9dl -> i16x8_extmul_high_i8x16_s
@@ -880,10 +830,8 @@ let rec instr s =
     | 0x9fl -> i16x8_extmul_high_i8x16_u
     | 0xa0l -> i32x4_abs
     | 0xa1l -> i32x4_neg
-    | 0xa2l as n -> illegal s pos (I32.to_int_u n)
     | 0xa3l -> i32x4_all_true
     | 0xa4l -> i32x4_bitmask
-    | 0xa5l | 0xa6l as n -> illegal s pos (I32.to_int_u n)
     | 0xa7l -> i32x4_extend_low_i16x8_s
     | 0xa8l -> i32x4_extend_high_i16x8_s
     | 0xa9l -> i32x4_extend_low_i16x8_u
@@ -892,9 +840,7 @@ let rec instr s =
     | 0xacl -> i32x4_shr_s
     | 0xadl -> i32x4_shr_u
     | 0xael -> i32x4_add
-    | 0xafl | 0xb0l as n -> illegal s pos (I32.to_int_u n)
     | 0xb1l -> i32x4_sub
-    | 0xb2l | 0xb3l | 0xb4l as n -> illegal s pos (I32.to_int_u n)
     | 0xb5l -> i32x4_mul
     | 0xb6l -> i32x4_min_s
     | 0xb7l -> i32x4_min_u
@@ -907,10 +853,8 @@ let rec instr s =
     | 0xbfl -> i32x4_extmul_high_i16x8_u
     | 0xc0l -> i64x2_abs
     | 0xc1l -> i64x2_neg
-    | 0xc2l as n -> illegal s pos (I32.to_int_u n)
     | 0xc3l -> i64x2_all_true
     | 0xc4l -> i64x2_bitmask
-    | 0xc5l | 0xc6l as n -> illegal s pos (I32.to_int_u n)
     | 0xc7l -> i64x2_extend_low_i32x4_s
     | 0xc8l -> i64x2_extend_high_i32x4_s
     | 0xc9l -> i64x2_extend_low_i32x4_u
@@ -919,9 +863,7 @@ let rec instr s =
     | 0xccl -> i64x2_shr_s
     | 0xcdl -> i64x2_shr_u
     | 0xcel -> i64x2_add
-    | 0xcfl | 0xd0l as n -> illegal s pos (I32.to_int_u n)
     | 0xd1l -> i64x2_sub
-    | 0xd2l | 0xd3l | 0xd4l as n -> illegal s pos (I32.to_int_u n)
     | 0xd5l -> i64x2_mul
     | 0xd6l -> i64x2_eq
     | 0xd7l -> i64x2_ne
@@ -935,7 +877,6 @@ let rec instr s =
     | 0xdfl -> i64x2_extmul_high_i32x4_u
     | 0xe0l -> f32x4_abs
     | 0xe1l -> f32x4_neg
-    | 0xe2l as n -> illegal s pos (I32.to_int_u n)
     | 0xe3l -> f32x4_sqrt
     | 0xe4l -> f32x4_add
     | 0xe5l -> f32x4_sub

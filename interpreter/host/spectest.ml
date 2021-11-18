@@ -10,14 +10,13 @@ open Instance
 let global (GlobalT (_, t) as gt) =
   let v =
     match t with
-    | NumT I32T -> Num (I32 666l)
-    | NumT I64T -> Num (I64 666L)
-    | NumT F32T -> Num (F32 (F32.of_float 666.6))
-    | NumT F64T -> Num (F64 (F64.of_float 666.6))
-    | VecT V128T -> Vec (V128 (V128.I32x4.of_lanes [666l; 666l; 666l; 666l]))
-    | RefT (_, t) -> Ref (NullRef t)
-    | BotT -> assert false
-  in ExternGlobal (Global.alloc gt v)
+    | NumType I32Type -> Num (I32 666l)
+    | NumType I64Type -> Num (I64 666L)
+    | NumType F32Type -> Num (F32 (F32.of_float 666.6))
+    | NumType F64Type -> Num (F64 (F64.of_float 666.6))
+    | VecType V128Type -> Vec (V128 (V128.I32x4.of_lanes [666l; 666l; 666l; 666l]))
+    | RefType t -> Ref (NullRef t)
+  in Global.alloc gt v
 
 let table =
   let tt = TableT ({min = 10l; max = Some 20l}, (Null, FuncHT)) in

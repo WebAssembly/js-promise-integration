@@ -23,6 +23,8 @@ open Pack
 
 type void = Lib.void
 
+type void = Lib.void
+
 
 (* Operators *)
 
@@ -98,26 +100,26 @@ struct
   type replaceop = (nreplaceop, nreplaceop, nreplaceop, nreplaceop, nreplaceop, nreplaceop) V128.laneop
 end
 
-type testop = (I32Op.testop, I64Op.testop, F32Op.testop, F64Op.testop) Value.op
-type unop = (I32Op.unop, I64Op.unop, F32Op.unop, F64Op.unop) Value.op
-type binop = (I32Op.binop, I64Op.binop, F32Op.binop, F64Op.binop) Value.op
-type relop = (I32Op.relop, I64Op.relop, F32Op.relop, F64Op.relop) Value.op
-type cvtop = (I32Op.cvtop, I64Op.cvtop, F32Op.cvtop, F64Op.cvtop) Value.op
+type testop = (I32Op.testop, I64Op.testop, F32Op.testop, F64Op.testop) Values.op
+type unop = (I32Op.unop, I64Op.unop, F32Op.unop, F64Op.unop) Values.op
+type binop = (I32Op.binop, I64Op.binop, F32Op.binop, F64Op.binop) Values.op
+type relop = (I32Op.relop, I64Op.relop, F32Op.relop, F64Op.relop) Values.op
+type cvtop = (I32Op.cvtop, I64Op.cvtop, F32Op.cvtop, F64Op.cvtop) Values.op
 
-type vec_testop = (V128Op.testop) Value.vecop
-type vec_relop = (V128Op.relop) Value.vecop
-type vec_unop = (V128Op.unop) Value.vecop
-type vec_binop = (V128Op.binop) Value.vecop
-type vec_cvtop = (V128Op.cvtop) Value.vecop
-type vec_shiftop = (V128Op.shiftop) Value.vecop
-type vec_bitmaskop = (V128Op.bitmaskop) Value.vecop
-type vec_vtestop = (V128Op.vtestop) Value.vecop
-type vec_vunop = (V128Op.vunop) Value.vecop
-type vec_vbinop = (V128Op.vbinop) Value.vecop
-type vec_vternop = (V128Op.vternop) Value.vecop
-type vec_splatop = (V128Op.splatop) Value.vecop
-type vec_extractop = (V128Op.extractop) Value.vecop
-type vec_replaceop = (V128Op.replaceop) Value.vecop
+type vec_testop = (V128Op.testop) Values.vecop
+type vec_relop = (V128Op.relop) Values.vecop
+type vec_unop = (V128Op.unop) Values.vecop
+type vec_binop = (V128Op.binop) Values.vecop
+type vec_cvtop = (V128Op.cvtop) Values.vecop
+type vec_shiftop = (V128Op.shiftop) Values.vecop
+type vec_bitmaskop = (V128Op.bitmaskop) Values.vecop
+type vec_vtestop = (V128Op.vtestop) Values.vecop
+type vec_vunop = (V128Op.vunop) Values.vecop
+type vec_vbinop = (V128Op.vbinop) Values.vecop
+type vec_vternop = (V128Op.vternop) Values.vecop
+type vec_splatop = (V128Op.splatop) Values.vecop
+type vec_extractop = (V128Op.extractop) Values.vecop
+type vec_replaceop = (V128Op.replaceop) Values.vecop
 
 type ('t, 'p) memop = {ty : 't; align : int; offset : int32; pack : 'p}
 type loadop = (num_type, (pack_size * extension) option) memop
@@ -125,18 +127,15 @@ type storeop = (num_type, pack_size option) memop
 
 type vec_loadop = (vec_type, (pack_size * vec_extension) option) memop
 type vec_storeop = (vec_type, unit) memop
-type vec_laneop = (vec_type, pack_size) memop
-
-type initop = Explicit | Implicit
-type externop = Internalize | Externalize
+type vec_laneop = (vec_type, pack_size) memop * int
 
 
 (* Expressions *)
 
-type idx = int32 Source.phrase
-type num = Value.num Source.phrase
-type vec = Value.vec Source.phrase
-type name = Utf8.unicode
+type var = int32 Source.phrase
+type num = Values.num Source.phrase
+type vec = Values.vec Source.phrase
+type name = int list
 
 type block_type = VarBlockType of idx | ValBlockType of val_type option
 
@@ -157,70 +156,42 @@ and instr' =
   | BrOnCast of idx * ref_type * ref_type     (* break on type *)
   | BrOnCastFail of idx * ref_type * ref_type (* break on type inverted *)
   | Return                            (* break from function body *)
-  | Call of idx                       (* call function *)
-  | CallRef of idx                    (* call function through reference *)
-  | CallIndirect of idx * idx         (* call function through table *)
-  | ReturnCall of idx                 (* tail-call function *)
-  | ReturnCallRef of idx              (* tail call through reference *)
-  | ReturnCallIndirect of idx * idx   (* tail-call function through table *)
-  | Throw of idx                      (* throw exception *)
-  | ThrowRef                          (* rethrow exception *)
-  | TryTable of block_type * catch list * instr list  (* handle exceptions *)
-  | LocalGet of idx                   (* read local idxiable *)
-  | LocalSet of idx                   (* write local idxiable *)
-  | LocalTee of idx                   (* write local idxiable and keep value *)
-  | GlobalGet of idx                  (* read global idxiable *)
-  | GlobalSet of idx                  (* write global idxiable *)
-  | TableGet of idx                   (* read table element *)
-  | TableSet of idx                   (* write table element *)
-  | TableSize of idx                  (* size of table *)
-  | TableGrow of idx                  (* grow table *)
-  | TableFill of idx                  (* fill table with unique value *)
-  | TableCopy of idx * idx            (* copy table range *)
-  | TableInit of idx * idx            (* initialize table range from segment *)
-  | ElemDrop of idx                   (* drop passive element segment *)
-  | Load of idx * loadop              (* read memory at address *)
-  | Store of idx * storeop            (* write memory at address *)
-  | VecLoad of idx * vec_loadop       (* read memory at address *)
-  | VecStore of idx * vec_storeop     (* write memory at address *)
-  | VecLoadLane of idx * vec_laneop * int  (* read single lane at address *)
-  | VecStoreLane of idx * vec_laneop * int (* write single lane to address *)
-  | MemorySize of idx                 (* size of memory *)
-  | MemoryGrow of idx                 (* grow memory *)
-  | MemoryFill of idx                 (* fill memory range with value *)
-  | MemoryCopy of idx * idx           (* copy memory ranges *)
-  | MemoryInit of idx * idx           (* initialize memory range from segment *)
-  | DataDrop of idx                   (* drop passive data segment *)
+  | Call of var                       (* call function *)
+  | CallIndirect of var * var         (* call function through table *)
+  | LocalGet of var                   (* read local variable *)
+  | LocalSet of var                   (* write local variable *)
+  | LocalTee of var                   (* write local variable and keep value *)
+  | GlobalGet of var                  (* read global variable *)
+  | GlobalSet of var                  (* write global variable *)
+  | TableGet of var                   (* read table element *)
+  | TableSet of var                   (* write table element *)
+  | TableSize of var                  (* size of table *)
+  | TableGrow of var                  (* grow table *)
+  | TableFill of var                  (* fill table range with value *)
+  | TableCopy of var * var            (* copy table range *)
+  | TableInit of var * var            (* initialize table range from segment *)
+  | ElemDrop of var                   (* drop passive element segment *)
+  | Load of loadop                    (* read memory at address *)
+  | Store of storeop                  (* write memory at address *)
+  | VecLoad of vec_loadop             (* read memory at address *)
+  | VecStore of vec_storeop           (* write memory at address *)
+  | VecLoadLane of vec_laneop         (* read single lane at address *)
+  | VecStoreLane of vec_laneop        (* write single lane to address *)
+  | MemorySize                        (* size of memory *)
+  | MemoryGrow                        (* grow memory *)
+  | MemoryFill                        (* fill memory range with value *)
+  | MemoryCopy                        (* copy memory ranges *)
+  | MemoryInit of var                 (* initialize memory range from segment *)
+  | DataDrop of var                   (* drop passive data segment *)
+  | RefNull of ref_type               (* null reference *)
+  | RefFunc of var                    (* function reference *)
+  | RefIsNull                         (* null test *)
   | Const of num                      (* constant *)
   | Test of testop                    (* numeric test *)
   | Compare of relop                  (* numeric comparison *)
   | Unary of unop                     (* unary numeric operator *)
   | Binary of binop                   (* binary numeric operator *)
   | Convert of cvtop                  (* conversion *)
-  | RefNull of heap_type              (* null reference *)
-  | RefFunc of idx                    (* function reference *)
-  | RefIsNull                         (* type test *)
-  | RefAsNonNull                      (* type cast *)
-  | RefTest of ref_type               (* type test *)
-  | RefCast of ref_type               (* type cast *)
-  | RefEq                             (* reference equality *)
-  | RefI31                            (* scalar reference *)
-  | I31Get of extension               (* read scalar *)
-  | StructNew of idx * initop         (* allocate structure *)
-  | StructGet of idx * idx * extension option  (* read structure field *)
-  | StructSet of idx * idx            (* write structure field *)
-  | ArrayNew of idx * initop          (* allocate array *)
-  | ArrayNewFixed of idx * int32      (* allocate fixed array *)
-  | ArrayNewElem of idx * idx         (* allocate array from element segment *)
-  | ArrayNewData of idx * idx         (* allocate array from data segment *)
-  | ArrayGet of idx * extension option  (* read array slot *)
-  | ArraySet of idx                   (* write array slot *)
-  | ArrayLen                          (* read array length *)
-  | ArrayCopy of idx * idx            (* copy between two arrays *)
-  | ArrayFill of idx                  (* fill array with value *)
-  | ArrayInitData of idx * idx        (* fill array from data segment *)
-  | ArrayInitElem of idx * idx        (* fill array from elem segment *)
-  | ExternConvert of externop         (* extern conversion *)
   | VecConst of vec                   (* constant *)
   | VecTest of vec_testop             (* vector test *)
   | VecCompare of vec_relop           (* vector comparison *)
@@ -236,13 +207,6 @@ and instr' =
   | VecSplat of vec_splatop           (* number to vector conversion *)
   | VecExtract of vec_extractop       (* extract lane from vector *)
   | VecReplace of vec_replaceop       (* replace lane in vector *)
-
-and catch = catch' Source.phrase
-and catch' =
-  | Catch of idx * idx
-  | CatchRef of idx * idx
-  | CatchAll of idx
-  | CatchAllRef of idx
 
 
 (* Locals, globals & Functions *)

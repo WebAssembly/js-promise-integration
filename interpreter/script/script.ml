@@ -1,9 +1,9 @@
 type var = string Source.phrase
 
-type Value.ref_ += HostRef of int32
-type num = Value.num Source.phrase
-type ref_ = Value.ref_ Source.phrase
-type literal = Value.t Source.phrase
+type Values.ref_ += ExternRef of int32
+type num = Values.num Source.phrase
+type ref_ = Values.ref_ Source.phrase
+type literal = Values.value Source.phrase
 
 type definition = definition' Source.phrase
 and definition' =
@@ -25,12 +25,11 @@ type num_pat =
   | NanPat of nanop
 
 type vec_pat =
-  | VecPat of (V128.shape * num_pat list) Value.vecop
+  | VecPat of (V128.shape * num_pat list) Values.vecop
 
 type ref_pat =
   | RefPat of ref_
-  | RefTypePat of Types.heap_type
-  | NullPat
+  | RefTypePat of Types.ref_type
 
 type result = result' Source.phrase
 and result' =
@@ -81,8 +80,8 @@ let () =
     | r -> string_of_ref' r
 
 let () =
-  let eq_ref' = !Value.eq_ref' in
-  Value.eq_ref' := fun r1 r2 ->
+  let eq_ref' = !Values.eq_ref' in
+  Values.eq_ref' := fun r1 r2 ->
     match r1, r2 with
-    | HostRef n1, HostRef n2 -> n1 = n2
+    | ExternRef n1, ExternRef n2 -> n1 = n2
     | _, _ -> eq_ref' r1 r2

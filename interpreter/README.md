@@ -15,9 +15,7 @@ The text format defines modules in S-expression syntax. Moreover, it is generali
 
 ## Building
 
-You'll need OCaml 4.12 or higher. Instructions for installing a recent version of OCaml on multiple platforms are available [here](https://ocaml.org/docs/install.html). On most platforms, the recommended way is through [OPAM](https://ocaml.org/docs/install.html#OPAM).
-
-You'll also need to install the dune build system. See the [installation instructions](https://github.com/ocaml/dune#installation-1).
+You'll need OCaml 4.08 or higher. Instructions for installing a recent version of OCaml on multiple platforms are available [here](https://ocaml.org/docs/install.html). On most platforms, the recommended way is through [OPAM](https://ocaml.org/docs/install.html#OPAM).
 
 Once you have OCaml, simply do
 
@@ -179,43 +177,17 @@ float:  <num>.<num>?(e|E <num>)? | 0x<hexnum>.<hexnum>?(p|P <num>)?
 name:   $(<letter> | <digit> | _ | . | + | - | * | / | \ | ^ | ~ | = | < | > | ! | ? | @ | # | $ | % | & | | | : | ' | `)+
 string: "(<char> | \n | \t | \\ | \' | \" | \<hex><hex> | \u{<hex>+})*"
 
-num: <int> | <float>
-var: <nat> | <name>
-
-unop:  ctz | clz | popcnt | ...
-binop: add | sub | mul | ...
-relop: eq | ne | lt | ...
-sign:  s | u
-offset: offset=<nat>
-align: align=(1|2|4|8|...)
-cvtop: trunc | extend | wrap | ...
-castop: data | array | i31
-externop: internalize | externalize
-
 num_type: i32 | i64 | f32 | f64
 vec_type: v128
 vec_shape: i8x16 | i16x8 | i32x4 | i64x2 | f32x4 | f64x2 | v128
-heap_type: any | eq | i31 | data | array | func | extern | none | nofunc | noextern | <var> | (rtt <var>)
-ref_type:
-  ( ref null? <heap_type> )
-  ( rtt <var> )               ;; = (ref (rtt <var>))
-  anyref                      ;; = (ref null any)
-  eqref                       ;; = (ref null eq)
-  i31ref                      ;; = (ref i31)
-  dataref                     ;; = (ref null data)
-  arrayref                    ;; = (ref null array)
-  funcref                     ;; = (ref null func)
-  externref                   ;; = (ref null extern)
-  nullref                     ;; = (ref null none)
-  nullfuncref                 ;; = (ref null nofunc)
-  nullexternref               ;; = (ref null noextern)
+ref_kind: func | extern
+ref_type: funcref | externref
 val_type: <num_type> | <vec_type> | <ref_type>
 block_type : ( result <val_type>* )*
 func_type:   ( type <var> )? <param>* <result>*
 global_type: <val_type> | ( mut <val_type> )
 table_type:  <nat> <nat>? <ref_type>
 memory_type: <nat> <nat>?
-tag_type: ( type <var> )? <param>*
 
 num: <int> | <float>
 var: <nat> | <name>
@@ -228,6 +200,9 @@ sign:  s | u
 offset: offset=<nat>
 align: align=(1|2|4|8|...)
 cvtop: trunc | extend | wrap | ...
+castop: data | array | i31
+externop: internalize | externalize
+
 vecunop: abs | neg | ...
 vecbinop: add | sub | min_<sign> | ...
 vecternop: bitselect
@@ -302,24 +277,6 @@ op:
   data.drop <var>
   ref.null <heap_type>
   ref.func <var>
-  ref.is_null
-  ref_as_non_null
-  ref.test <var>
-  ref.cast <var>
-  ref.eq
-  i31.new
-  i31.get_<sign>
-  struct.new(_<default>)? <var>
-  struct.get(_<sign>)? <var> <var>
-  struct.set <var> <var>
-  array.new(_<default>)? <var>
-  array.new_fixed <var> <nat>
-  array.new_elem <var> <var>
-  array.new_data <var> <var>
-  array.get(_<sign>)? <var>
-  array.set <var>
-  array.len <var>
-  extern.<externop>
   <num_type>.const <num>
   <num_type>.<unop>
   <num_type>.<binop>
@@ -338,12 +295,6 @@ op:
   <vec_shape>.splat
   <vec_shape>.extract_lane(_<sign>)? <nat>
   <vec_shape>.replace_lane <nat>
-
-catch:
-  catch <var> <var>
-  catch_ref <var> <var>
-  catch_all <var>
-  catch_all_ref <var>
 
 func:    ( func <name>? <func_type> <local>* <instr>* )
          ( func <name>? ( export <string> ) <...> )                         ;; = (export <string> (func <N>)) (func <name>? <...>)
@@ -445,8 +396,7 @@ const:
   ( <num_type>.const <num> )                 ;; number value
   ( <vec_type> <vec_shape> <num>+ )          ;; vector value
   ( ref.null <ref_kind> )                    ;; null reference
-  ( ref.host <nat> )                         ;; host reference
-  ( ref.extern <nat> )                       ;; external host reference
+  ( ref.extern <nat> )                       ;; host reference
 
 assertion:
   ( assert_return <action> <result_pat>* )   ;; assert action has expected results
@@ -458,11 +408,11 @@ assertion:
   ( assert_unlinkable <module> <failure> )   ;; assert module fails to link
   ( assert_trap <module> <failure> )         ;; assert module traps on instantiation
 
-result_pat:
+result:
+  <const>
   ( <num_type>.const <num_pat> )
   ( <vec_type>.const <vec_shape> <num_pat>+ )
-  ( ref )
-  ( ref.null )
+  ( ref.extern )
   ( ref.func )
   ( ref.extern )
   ( ref.<castop> )

@@ -7,7 +7,7 @@ Runtime Structure
 :ref:`Store <store>`, :ref:`stack <stack>`, and other *runtime structure* forming the WebAssembly abstract machine, such as :ref:`values <syntax-val>` or :ref:`module instances <syntax-moduleinst>`, are made precise in terms of additional auxiliary syntax.
 
 
-.. index:: ! value, number, reference, constant, number type, vector type, reference type, ! host address, value type, integer, floating-point, vector number, ! default value, unboxed scalar, structure, array, external reference
+.. index:: ! value, number, reference, constant, number type, vector type, reference type, ! host address, value type, integer, floating-point, vector number, ! default value
    pair: abstract syntax; value
 .. _syntax-num:
 .. _syntax-vecc:
@@ -24,7 +24,7 @@ Runtime Structure
 Values
 ~~~~~~
 
-WebAssembly computations manipulate *values* of either the four basic :ref:`number types <syntax-numtype>`, i.e., :ref:`integers <syntax-int>` and :ref:`floating-point data <syntax-float>` of 32 or 64 bit width each, or :ref:`vectors <syntax-vecnum>` of 128 bit width, or of :ref:`reference type <syntax-reftype>`.
+WebAssembly computations manipulate *values* of either the four basic :ref:`number types <syntax-numtype>`, i.e., :ref:`integers <syntax-int>` and :ref:`floating-point data <syntax-float>` of 32 or 64 bit width each, of :ref:`vectors <syntax-vecnum>` of 128 bit width, or of :ref:`reference type <syntax-reftype>`.
 
 In most places of the semantics, values of different types can occur.
 In order to avoid ambiguities, values are therefore represented with an abstract syntax that makes their type explicit.
@@ -46,18 +46,13 @@ Any of the aformentioned references can furthermore be wrapped up as an *externa
      \I64.\CONST~\i64 \\&&|&
      \F32.\CONST~\f32 \\&&|&
      \F64.\CONST~\f64 \\
-   \production{vector} & \vecc &::=&
+   \production{(vector)} & \vecc &::=&
      \V128.\CONST~\i128 \\
-   \production{reference} & \reff &::=&
-     \REFNULL~(\absheaptype~|~\deftype) \\&&|&
-     \REFI31NUM~\u31 \\&&|&
-     \REFSTRUCTADDR~\structaddr \\&&|&
-     \REFARRAYADDR~\arrayaddr \\&&|&
+   \production{(reference)} & \reff &::=&
+     \REFNULL~t \\&&|&
      \REFFUNCADDR~\funcaddr \\&&|&
-     \REFEXNADDR~\exnaddr \\&&|&
-     \REFHOSTADDR~\hostaddr \\&&|&
-     \REFEXTERN~\reff \\
-   \production{value} & \val &::=&
+     \REFEXTERNADDR~\externaddr \\
+   \production{(value)} & \val &::=&
      \num ~|~ \vecc ~|~ \reff \\
    \end{array}
 

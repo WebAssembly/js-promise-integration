@@ -104,7 +104,7 @@ Control Instructions
    The |ELSE| opcode :math:`\hex{05}` in the encoding of an |IF| instruction can be omitted if the following instruction sequence is empty.
 
    Unlike any :ref:`other occurrence <binary-typeidx>`, the :ref:`type index <syntax-typeidx>` in a :ref:`block type <syntax-blocktype>` is encoded as a positive :ref:`signed integer <syntax-sint>`, so that its |SignedLEB128| bit pattern cannot collide with the encoding of :ref:`value types <binary-valtype>` or the special code :math:`\hex{40}`, which correspond to the LEB128 encoding of negative integers.
-   To avoid any loss in the range of allowed indices, it is treated as a 33 bit signed integer. 
+   To avoid any loss in the range of allowed indices, it is treated as a 33 bit signed integer.
 
 
 .. index:: reference instruction
@@ -576,7 +576,7 @@ The |VCONST| instruction is followed by 16 immediate bytes, which are converted 
    \begin{array}{llclll}
    \production{instruction} & \Binstr &::=& \dots \\&&|&
      \hex{FD}~~12{:}\Bu32~~(b{:}\Bbyte)^{16} &\Rightarrow& \V128.\VCONST~
-     \bytes_{\K{i128}}^{-1}(b_{0}~\dots~b_{15}) \\
+     bytes_{\K{i128}}^{-1}(b_{0}~\dots~b_{15}) \\
    \end{array}
 
 .. _binary-vternop:
@@ -679,7 +679,7 @@ All other vector instructions are plain opcodes without any immediates.
      \hex{FD}~~216{:}\Bu32 &\Rightarrow& \I64X2.\VLT\K{\_s} \\ &&|&
      \hex{FD}~~217{:}\Bu32 &\Rightarrow& \I64X2.\VGT\K{\_s} \\ &&|&
      \hex{FD}~~218{:}\Bu32 &\Rightarrow& \I64X2.\VLE\K{\_s} \\ &&|&
-     \hex{FD}~~219{:}\Bu32 &\Rightarrow& \I64X2.\VGE\K{\_s} \\
+     \hex{FD}~~219{:}\Bu32 &\Rightarrow& \I64X2.\VGE\K{\_s} \\ &&|&
    \end{array}
 
 .. _binary-vfrelop:

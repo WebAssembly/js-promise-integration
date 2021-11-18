@@ -63,16 +63,9 @@ let mutability node = function
 
 let num_type t = string_of_num_type t
 let vec_type t = string_of_vec_type t
-let ref_type t =
-  match t with
-  | (Null, AnyHT) -> "anyref"
-  | (Null, EqHT) -> "eqref"
-  | (Null, I31HT) -> "i31ref"
-  | (Null, StructHT) -> "structref"
-  | (Null, ArrayHT) -> "arrayref"
-  | (Null, FuncHT) -> "funcref"
-  | (Null, ExnHT) -> "exnref"
-  | t -> string_of_ref_type t
+let ref_type t = string_of_ref_type t
+let refed_type t = string_of_refed_type t
+let value_type t = string_of_value_type t
 
 let heap_type t = string_of_heap_type t
 let val_type t = string_of_val_type t
@@ -394,7 +387,7 @@ struct
 end
 
 let oper (iop, fop) op =
-  string_of_num_type (type_of_num op) ^ "." ^
+  num_type (type_of_num op) ^ "." ^
   (match op with
   | I32 o -> iop "32" o
   | I64 o -> iop "64" o
@@ -431,53 +424,43 @@ let vec_splatop = vec_shape_oper (V128Op.splatop, V128Op.splatop, V128Op.splatop
 let vec_extractop = vec_shape_oper (V128Op.pextractop, V128Op.extractop, V128Op.extractop)
 let vec_replaceop = vec_shape_oper (V128Op.replaceop, V128Op.replaceop, V128Op.replaceop)
 
+let memop name typ {ty; align; offset; _} sz =
+  typ ty ^ "." ^ name ^
+  (if offset = 0l then "" else " offset=" ^ nat32 offset) ^
+  (if 1 lsl align = sz then "" else " align=" ^ nat (1 lsl align))
+
+let loadop op =
+  match op.pack with
+  | None -> memop "load" num_type op (num_size op.ty)
+  | Some (sz, ext) ->
+    memop ("load" ^ pack_size sz ^ extension ext) num_type op (packed_size sz)
+
+let storeop op =
+  match op.pack with
+  | None -> memop "store" num_type op (num_size op.ty)
+  | Some sz -> memop ("store" ^ pack_size sz) num_type op (packed_size sz)
+
+let vec_loadop (op : vec_loadop) =
+  match op.pack with
+  | None -> memop "load" vec_type op (vec_size op.ty)
+  | Some (sz, ext) ->
+    memop ("load" ^ vec_extension sz ext) vec_type op (packed_size sz)
+
+let vec_storeop op =
+  memop "store" vec_type op (vec_size op.ty)
+
+let vec_laneop instr (op, i) =
+  memop (instr ^ pack_size op.pack ^ "_lane") vec_type op
+    (packed_size op.pack) ^ " " ^ nat i
+
+
+(* Expressions *)
 
 let var x = nat32 x.it
 let num v = string_of_num v.it
 let vec v = string_of_vec v.it
-
-let memop name x typ {ty; align; offset; _} sz =
-  typ ty ^ "." ^ name ^ " " ^ var x ^
-  (if offset = 0l then "" else " offset=" ^ nat32 offset) ^
-  (if 1 lsl align = sz then "" else " align=" ^ nat (1 lsl align))
-
-let loadop x op =
-  match op.pack with
-  | None -> memop "load" x num_type op (num_size op.ty)
-  | Some (sz, ext) ->
-    memop ("load" ^ pack_size sz ^ extension ext) x num_type op (packed_size sz)
-
-let storeop x op =
-  match op.pack with
-  | None -> memop "store" x num_type op (num_size op.ty)
-  | Some sz -> memop ("store" ^ pack_size sz) x num_type op (packed_size sz)
-
-let vec_loadop x (op : vec_loadop) =
-  match op.pack with
-  | None -> memop "load" x vec_type op (vec_size op.ty)
-  | Some (sz, ext) ->
-    memop ("load" ^ vec_extension sz ext) x vec_type op (packed_size sz)
-
-let vec_storeop x op =
-  memop "store" x vec_type op (vec_size op.ty)
-
-let vec_laneop instr x op i =
-  memop (instr ^ pack_size op.pack ^ "_lane") x vec_type op
-    (packed_size op.pack) ^ " " ^ nat i
-
-let initop = function
-  | Explicit -> ""
-  | Implicit -> "_default"
-
-let constop v = string_of_num_type (type_of_num v) ^ ".const"
-let vec_constop v = string_of_vec_type (type_of_vec v) ^ ".const i32x4"
-
-let externop = function
-  | Internalize -> "any.convert_extern"
-  | Externalize -> "extern.convert_any"
-
-
-(* Expressions *)
+let constop v = num_type (type_of_num v) ^ ".const"
+let vec_constop v = vec_type (type_of_vec v) ^ ".const i32x4"
 
 let block_type = function
   | VarBlockType x -> [Node ("type " ^ var x, [])]
@@ -533,43 +516,20 @@ let rec instr e =
     | TableCopy (x, y) -> "table.copy " ^ var x ^ " " ^ var y, []
     | TableInit (x, y) -> "table.init " ^ var x ^ " " ^ var y, []
     | ElemDrop x -> "elem.drop " ^ var x, []
-    | Load (x, op) -> loadop x op, []
-    | Store (x, op) -> storeop x op, []
-    | VecLoad (x, op) -> vec_loadop x op, []
-    | VecStore (x, op) -> vec_storeop x op, []
-    | VecLoadLane (x, op, i) -> vec_laneop "load" x op i, []
-    | VecStoreLane (x, op, i) -> vec_laneop "store" x op i, []
-    | MemorySize x -> "memory.size " ^ var x, []
-    | MemoryGrow x -> "memory.grow " ^ var x, []
-    | MemoryFill x -> "memory.fill " ^ var x, []
-    | MemoryCopy (x, y) -> "memory.copy " ^ var x ^ " " ^ var y, []
-    | MemoryInit (x, y) -> "memory.init " ^ var x ^ " " ^ var y, []
+    | Load op -> loadop op, []
+    | Store op -> storeop op, []
+    | VecLoad op -> vec_loadop op, []
+    | VecStore op -> vec_storeop op, []
+    | VecLoadLane op -> vec_laneop "load" op, []
+    | VecStoreLane op -> vec_laneop "store" op, []
+    | MemorySize -> "memory.size", []
+    | MemoryGrow -> "memory.grow", []
+    | MemoryFill -> "memory.fill", []
+    | MemoryCopy -> "memory.copy", []
+    | MemoryInit x -> "memory.init " ^ var x, []
     | DataDrop x -> "data.drop " ^ var x, []
     | RefNull t -> "ref.null", [Atom (heap_type t)]
     | RefFunc x -> "ref.func " ^ var x, []
-    | RefIsNull -> "ref.is_null", []
-    | RefAsNonNull -> "ref.as_non_null", []
-    | RefTest t -> "ref.test", [Atom (ref_type t)]
-    | RefCast t -> "ref.cast", [Atom (ref_type t)]
-    | RefEq -> "ref.eq", []
-    | RefI31 -> "ref.i31", []
-    | I31Get ext -> "i31.get" ^ extension ext, []
-    | StructNew (x, op) -> "struct.new" ^ initop op ^ " " ^ var x, []
-    | StructGet (x, y, exto) ->
-      "struct.get" ^ opt_s extension exto ^ " " ^ var x ^ " " ^ var y, []
-    | StructSet (x, y) -> "struct.set " ^ var x ^ " " ^ var y, []
-    | ArrayNew (x, op) -> "array.new" ^ initop op ^ " " ^ var x, []
-    | ArrayNewFixed (x, n) -> "array.new_fixed " ^ var x ^ " " ^ nat32 n, []
-    | ArrayNewElem (x, y) -> "array.new_elem " ^ var x ^ " " ^ var y, []
-    | ArrayNewData (x, y) -> "array.new_data " ^ var x ^ " " ^ var y, []
-    | ArrayGet (x, exto) -> "array.get" ^ opt_s extension exto ^ " " ^ var x, []
-    | ArraySet x -> "array.set " ^ var x, []
-    | ArrayLen -> "array.len", []
-    | ArrayCopy (x, y) -> "array.copy " ^ var x ^ " " ^ var y, []
-    | ArrayFill x -> "array.fill " ^ var x, []
-    | ArrayInitData (x, y) -> "array.init_data " ^ var x ^ " " ^ var y, []
-    | ArrayInitElem (x, y) -> "array.init_elem " ^ var x ^ " " ^ var y, []
-    | ExternConvert op -> externop op, []
     | Const n -> constop n.it ^ " " ^ num n, []
     | Test op -> testop op, []
     | Compare op -> relop op, []
@@ -778,9 +738,8 @@ let num mode = if mode = `Binary then hex_string_of_num else string_of_num
 let vec mode = if mode = `Binary then hex_string_of_vec else string_of_vec
 
 let ref_ = function
-  | NullRef t -> Node ("ref.null " ^ heap_type t, [])
-  | Script.HostRef n -> Node ("ref.host " ^ nat32 n, [])
-  | Extern.ExternRef (Script.HostRef n) -> Node ("ref.extern " ^ nat32 n, [])
+  | NullRef t -> Node ("ref.null " ^ refed_type t, [])
+  | ExternRef n -> Node ("ref.extern " ^ nat32 n, [])
   | _ -> assert false
 
 let literal mode lit =
@@ -837,15 +796,15 @@ let nanop (n : nanop) =
   | _ -> .
 
 let num_pat mode = function
-  | NumPat n -> literal mode (Value.Num n.it @@ n.at)
+  | NumPat n -> literal mode (Values.Num n.it @@ n.at)
   | NanPat nan -> Node (constop nan.it ^ " " ^ nanop nan, [])
 
 let lane_pat mode pat shape =
   let choose fb ft = if mode = `Binary then fb else ft in
   match pat, shape with
-  | NumPat {it = Value.I32 i; _}, V128.I8x16 () ->
+  | NumPat {it = Values.I32 i; _}, V128.I8x16 () ->
     choose I8.to_hex_string I8.to_string_s i
-  | NumPat {it = Value.I32 i; _}, V128.I16x8 () ->
+  | NumPat {it = Values.I32 i; _}, V128.I16x8 () ->
     choose I16.to_hex_string I16.to_string_s i
   | NumPat n, _ -> num mode n.it
   | NanPat nan, _ -> nanop nan
@@ -857,8 +816,7 @@ let vec_pat mode = function
 
 let ref_pat = function
   | RefPat r -> ref_ r.it
-  | RefTypePat t -> Node ("ref." ^ heap_type t, [])
-  | NullPat -> Node ("ref.null", [])
+  | RefTypePat t -> Node ("ref." ^ refed_type t, [])
 
 let result mode res =
   match res.it with

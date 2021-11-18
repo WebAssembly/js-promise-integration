@@ -34,8 +34,7 @@ They correspond to the respective binary floating-point representations, also kn
 Number types are *transparent*, meaning that their bit patterns can be observed.
 Values of number type can be stored in :ref:`memories <syntax-mem>`.
 
-.. _bitwidth-numtype:
-.. _bitwidth-valtype:
+.. _bitwidth:
 
 Conventions
 ...........
@@ -55,7 +54,7 @@ Vector Types
 *Vector types* classify vectors of :ref:`numeric <syntax-numtype>` values processed by vector instructions (also known as *SIMD* instructions, single instruction multiple data).
 
 .. math::
-   \begin{array}{llrl}
+   \begin{array}{llll}
    \production{vector type} & \vectype &::=&
      \V128 \\
    \end{array}
@@ -67,88 +66,13 @@ values, or a single 128 bit type. The interpretation is determined by individual
 Vector types, like :ref:`number types <syntax-numtype>` are *transparent*, meaning that their bit patterns can be observed.
 Values of vector type can be stored in :ref:`memories <syntax-mem>`.
 
-.. _bitwidth-vectype:
-
 Conventions
 ...........
 
-* The notation :math:`|t|` for :ref:`bit width <bitwidth-numtype>` extends to vector types as well, that is, :math:`|\V128| = 128`.
+* The notation :math:`|t|` for :ref:`bit width <bitwidth>` extends to vector types as well, that is, :math:`|\V128| = 128`.
 
 
-.. index:: ! heap type, store, type index, ! abstract type, ! concrete type, ! unboxed scalar
-   pair: abstract syntax; heap type
-.. _type-abstract:
-.. _type-concrete:
-.. _syntax-i31:
-.. _syntax-heaptype:
-.. _syntax-absheaptype:
-
-Heap Types
-~~~~~~~~~~
-
-*Heap types* classify objects in the runtime :ref:`store <store>`.
-There are three disjoint hierarchies of heap types:
-
-- *function types* classify :ref:`functions <syntax-func>`,
-- *aggregate types* classify dynamically allocated *managed* data, such as *structures*, *arrays*, or *unboxed scalars*,
-- *external types* classify *external* references possibly owned by the :ref:`embedder <embedder>`.
-
-The values from the latter two hierarchies are interconvertible by ways of the |EXTERNCONVERTANY| and |ANYCONVERTEXTERN| instructions.
-That is, both type hierarchies are inhabited by an isomorphic set of values, but may have different, incompatible representations in practice.
-
-.. math::
-   \begin{array}{llrl}
-   \production{abstract heap type} & \absheaptype &::=&
-     \FUNC ~|~ \NOFUNC \\&&|&
-     \EXN ~|~ \NOEXN \\&&|&
-     \EXTERN ~|~ \NOEXTERN \\&&|&
-     \ANY ~|~ \EQT ~|~ \I31 ~|~ \STRUCT ~|~ \ARRAY ~|~ \NONE \\
-   \production{heap type} & \heaptype &::=&
-     \absheaptype ~|~ \typeidx \\
-   \end{array}
-
-A heap type is either *abstract* or *concrete*.
-
-The abstract type |FUNC| denotes the common supertype of all :ref:`function types <syntax-functype>`, regardless of their concrete definition.
-Dually, the type |NOFUNC| denotes the common subtype of all :ref:`function types <syntax-functype>`, regardless of their concrete definition.
-This type has no values.
-
-The abstract type |EXN| denotes the type of all :ref:`exception references <syntax-ref.exn>`.
-Dually, the type |NOEXN| denotes the common subtype of all forms of exception references.
-This type has no values.
-
-The abstract type |EXTERN| denotes the common supertype of all external references received through the :ref:`embedder <embedder>`.
-This type has no concrete subtypes.
-Dually, the type |NOEXTERN| denotes the common subtype of all forms of external references.
-This type has no values.
-
-The abstract type |ANY| denotes the common supertype of all aggregate types, as well as possibly abstract values produced by *internalizing* an external reference of type |EXTERN|.
-Dually, the type |NONE| denotes the common subtype of all forms of aggregate types.
-This type has no values.
-
-The abstract type |EQT| is a subtype of |ANY| that includes all types for which references can be compared, i.e., aggregate values and |I31|.
-
-The abstract types |STRUCT| and |ARRAY| denote the common supertypes of all :ref:`structure <syntax-structtype>` and :ref:`array <syntax-arraytype>` aggregates, respectively.
-
-The abstract type |I31| denotes *unboxed scalars*, that is, integers injected into references.
-Their observable value range is limited to 31 bits.
-
-.. note::
-   An |I31| is not actually allocated in the store,
-   but represented in a way that allows them to be mixed with actual references into the store without ambiguity.
-   Engines need to perform some form of *pointer tagging* to achieve this,
-   which is why 1 bit is reserved.
-
-   Although the types |NONE|, |NOFUNC|, |NOEXN|, and |NOEXTERN| are not inhabited by any values,
-   they can be used to form the types of all null :ref:`references <syntax-reftype>` in their respective hierarchy.
-   For example, :math:`(\REF~\NULL~\NOFUNC)` is the generic type of a null reference compatible with all function reference types.
-
-A concrete heap type consists of a :ref:`type index <syntax-typeidx>` and classifies an object of the respective :ref:`type <syntax-type>` defined in a module.
-
-The syntax of heap types is :ref:`extended <syntax-heaptype-ext>` with additional forms for the purpose of specifying :ref:`validation <valid>` and :ref:`execution <exec>`.
-
-
-.. index:: ! reference type, heap type, reference, table, function, function type, null
+.. index:: ! reference type, reference, table, function, function type, null
    pair: abstract syntax; reference type
    pair: reference; type
 .. _syntax-reftype:
@@ -175,31 +99,6 @@ Values of reference type can be stored in :ref:`tables <syntax-table>`.
 
 Conventions
 ...........
-
-* The reference type |ANYREF| is an abbreviation for :math:`\REF~\NULL~\ANY`.
-
-* The reference type |EQREF| is an abbreviation for :math:`\REF~\NULL~\EQT`.
-
-* The reference type |I31REF| is an abbreviation for :math:`\REF~\NULL~\I31`.
-
-* The reference type |STRUCTREF| is an abbreviation for :math:`\REF~\NULL~\STRUCT`.
-
-* The reference type |ARRAYREF| is an abbreviation for :math:`\REF~\NULL~\ARRAY`.
-
-* The reference type |FUNCREF| is an abbreviation for :math:`\REF~\NULL~\FUNC`.
-
-* The reference type |EXNREF| is an abbreviation for :math:`\REF~\NULL~\EXN`.
-
-* The reference type |EXTERNREF| is an abbreviation for :math:`\REF~\NULL~\EXTERN`.
-
-* The reference type |NULLREF| is an abbreviation for :math:`\REF~\NULL~\NONE`.
-
-* The reference type |NULLFUNCREF| is an abbreviation for :math:`\REF~\NULL~\NOFUNC`.
-
-* The reference type |NULLEXNREF| is an abbreviation for :math:`\REF~\NULL~\NOEXN`.
-
-* The reference type |NULLEXTERNREF| is an abbreviation for :math:`\REF~\NULL~\NOEXTERN`.
-
 
 .. index:: ! value type, number type, vector type, reference type
    pair: abstract syntax; value type

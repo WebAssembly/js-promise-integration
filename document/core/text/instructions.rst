@@ -718,6 +718,35 @@ Numeric Instructions
 Vector Instructions
 ~~~~~~~~~~~~~~~~~~~
 
+Vector memory instructions have optional offset and alignment immediates, like the :ref:`memory instructions <text-memarg>`.
+
+.. math::
+   \begin{array}{llclll}
+   \production{instruction} & \Tplaininstr_I &::=& \dots \phantom{averylonginstructionnameforvectext} && \phantom{vechasreallylonginstructionnames} \\ &&|&
+     \text{v128.load}~~m{:}\Tmemarg_{16} &\Rightarrow& \V128.\LOAD~m \\ &&|&
+     \text{v128.load8x8\_s}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{8x8\_s}~m \\ &&|&
+     \text{v128.load8x8\_u}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{8x8\_u}~m \\ &&|&
+     \text{v128.load16x4\_s}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{16x4\_s}~m \\ &&|&
+     \text{v128.load16x4\_u}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{16x4\_u}~m \\ &&|&
+     \text{v128.load32x2\_s}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{32x2\_s}~m \\ &&|&
+     \text{v128.load32x2\_u}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{32x2\_u}~m \\ &&|&
+     \text{v128.load8\_splat}~~m{:}\Tmemarg_1 &\Rightarrow& \V128.\LOAD\K{8\_splat}~m \\ &&|&
+     \text{v128.load16\_splat}~~m{:}\Tmemarg_2 &\Rightarrow& \V128.\LOAD\K{16\_splat}~m \\ &&|&
+     \text{v128.load32\_splat}~~m{:}\Tmemarg_4 &\Rightarrow& \V128.\LOAD\K{32\_splat}~m \\ &&|&
+     \text{v128.load64\_splat}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{64\_splat}~m \\ &&|&
+     \text{v128.load32\_zero}~~m{:}\Tmemarg_4 &\Rightarrow& \V128.\LOAD\K{32\_zero}~m \\ &&|&
+     \text{v128.load64\_zero}~~m{:}\Tmemarg_8 &\Rightarrow& \V128.\LOAD\K{64\_zero}~m \\ &&|&
+     \text{v128.store}~~m{:}\Tmemarg_{16} &\Rightarrow& \V128.\STORE~m \\ &&|&
+     \text{v128.load8\_lane}~~m{:}\Tmemarg_1~~laneidx{:}\Tu8 &\Rightarrow& \V128.\LOAD\K{8\_lane}~m~laneidx \\ &&|&
+     \text{v128.load16\_lane}~~m{:}\Tmemarg_2~~laneidx{:}\Tu8 &\Rightarrow& \V128.\LOAD\K{16\_lane}~m~laneidx \\ &&|&
+     \text{v128.load32\_lane}~~m{:}\Tmemarg_4~~laneidx{:}\Tu8 &\Rightarrow& \V128.\LOAD\K{32\_lane}~m~laneidx \\ &&|&
+     \text{v128.load64\_lane}~~m{:}\Tmemarg_8~~laneidx{:}\Tu8 &\Rightarrow& \V128.\LOAD\K{64\_lane}~m~laneidx \\ &&|&
+     \text{v128.store8\_lane}~~m{:}\Tmemarg_1~~laneidx{:}\Tu8 &\Rightarrow& \V128.\STORE\K{8\_lane}~m~laneidx \\ &&|&
+     \text{v128.store16\_lane}~~m{:}\Tmemarg_2~~laneidx{:}\Tu8 &\Rightarrow& \V128.\STORE\K{16\_lane}~m~laneidx \\ &&|&
+     \text{v128.store32\_lane}~~m{:}\Tmemarg_4~~laneidx{:}\Tu8 &\Rightarrow& \V128.\STORE\K{32\_lane}~m~laneidx \\ &&|&
+     \text{v128.store64\_lane}~~m{:}\Tmemarg_8~~laneidx{:}\Tu8 &\Rightarrow& \V128.\STORE\K{64\_lane}~m~laneidx \\
+   \end{array}
+
 Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` descriptor, which determines how the following values are parsed.
 
 .. math::
@@ -997,10 +1026,6 @@ Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` de
      \text{f32x4.abs} &\Rightarrow& \F32X4.\VABS\\ &&|&
      \text{f32x4.neg} &\Rightarrow& \F32X4.\VNEG\\ &&|&
      \text{f32x4.sqrt} &\Rightarrow& \F32X4.\VSQRT\\ &&|&
-     \text{f32x4.ceil} &\Rightarrow& \F32X4.\VCEIL\\ &&|&
-     \text{f32x4.floor} &\Rightarrow& \F32X4.\VFLOOR\\ &&|&
-     \text{f32x4.trunc} &\Rightarrow& \F32X4.\VTRUNC\\ &&|&
-     \text{f32x4.nearest} &\Rightarrow& \F32X4.\VNEAREST\\ &&|&
      \text{f32x4.add} &\Rightarrow& \F32X4.\VADD\\ &&|&
      \text{f32x4.sub} &\Rightarrow& \F32X4.\VSUB\\ &&|&
      \text{f32x4.mul} &\Rightarrow& \F32X4.\VMUL\\ &&|&
@@ -1017,10 +1042,6 @@ Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` de
      \text{f64x2.abs} &\Rightarrow& \F64X2.\VABS\\ &&|&
      \text{f64x2.neg} &\Rightarrow& \F64X2.\VNEG\\ &&|&
      \text{f64x2.sqrt} &\Rightarrow& \F64X2.\VSQRT\\ &&|&
-     \text{f64x2.ceil} &\Rightarrow& \F64X2.\VCEIL\\ &&|&
-     \text{f64x2.floor} &\Rightarrow& \F64X2.\VFLOOR\\ &&|&
-     \text{f64x2.trunc} &\Rightarrow& \F64X2.\VTRUNC\\ &&|&
-     \text{f64x2.nearest} &\Rightarrow& \F64X2.\VNEAREST\\ &&|&
      \text{f64x2.add} &\Rightarrow& \F64X2.\VADD\\ &&|&
      \text{f64x2.sub} &\Rightarrow& \F64X2.\VSUB\\ &&|&
      \text{f64x2.mul} &\Rightarrow& \F64X2.\VMUL\\ &&|&
@@ -1043,7 +1064,7 @@ Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` de
      \text{f64x2.convert\_low\_i32x4\_s} &\Rightarrow& \F64X2.\VCONVERT\K{\_low\_i32x4\_s}\\  &&|&
      \text{f64x2.convert\_low\_i32x4\_u} &\Rightarrow& \F64X2.\VCONVERT\K{\_low\_i32x4\_u}\\ &&|&
      \text{f32x4.demote\_f64x2\_zero} &\Rightarrow& \F32X4.\VDEMOTE\K{\_f64x2\_zero}\\ &&|&
-     \text{f64x2.promote\_low\_f32x4} &\Rightarrow& \F64X2.\VPROMOTE\K{\_low\_f32x4}\\
+     \text{f64x2.promote\_low\_f32x4} &\Rightarrow& \F64X2.\VPROMOTE\K{\_low\_f32x4}\\ &&|&
    \end{array}
 
 

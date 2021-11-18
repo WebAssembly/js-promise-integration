@@ -45,37 +45,6 @@ Vector Types
    \end{array}
 
 
-.. index:: heap type
-   pair: binary format; heap type
-.. _binary-heaptype:
-.. _binary-absheaptype:
-
-Heap Types
-~~~~~~~~~~
-
-:ref:`Heap types <syntax-reftype>` are encoded as either a single byte, or as a :ref:`type index <binary-typeidx>` encoded as a positive :ref:`signed integer <binary-sint>`.
-
-.. math::
-   \begin{array}{llclll@{\qquad\qquad}l}
-   \production{abstract heap type} & \Babsheaptype &::=&
-     \hex{74} &\Rightarrow& \NOEXN \\ &&|&
-     \hex{73} &\Rightarrow& \NOFUNC \\ &&|&
-     \hex{72} &\Rightarrow& \NOEXTERN \\ &&|&
-     \hex{71} &\Rightarrow& \NONE \\ &&|&
-     \hex{70} &\Rightarrow& \FUNC \\ &&|&
-     \hex{6F} &\Rightarrow& \EXTERN \\ &&|&
-     \hex{6E} &\Rightarrow& \ANY \\ &&|&
-     \hex{6D} &\Rightarrow& \EQT \\ &&|&
-     \hex{6C} &\Rightarrow& \I31 \\ &&|&
-     \hex{6B} &\Rightarrow& \STRUCT \\ &&|&
-     \hex{6A} &\Rightarrow& \ARRAY \\ &&|&
-     \hex{69} &\Rightarrow& \EXN \\
-   \production{heap type} & \Bheaptype &::=&
-     \X{ht}{:}\Babsheaptype &\Rightarrow& \X{ht} \\ &&|&
-     x{:}\Bs33 &\Rightarrow& x & (\iff x \geq 0) \\
-   \end{array}
-
-
 .. index:: reference type
    pair: binary format; reference type
 .. _binary-reftype:

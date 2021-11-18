@@ -237,31 +237,29 @@ let string_of_nan = function
 let type_of_result r =
   let open Types in
   match r with
-  | NumResult (NumPat n) -> NumT (Value.type_of_num n.it)
-  | NumResult (NanPat n) -> NumT (Value.type_of_num n.it)
-  | VecResult (VecPat v) -> VecT (Value.type_of_vec v)
-  | RefResult (RefPat r) -> RefT (Value.type_of_ref r.it)
-  | RefResult (RefTypePat t) -> RefT (NoNull, t)  (* assume closed *)
-  | RefResult (NullPat) -> RefT (Null, ExternHT)
+  | NumResult (NumPat n) -> Types.NumType (Values.type_of_num n.it)
+  | NumResult (NanPat n) -> Types.NumType (Values.type_of_num n.it)
+  | VecResult (VecPat _) -> Types.VecType Types.V128Type
+  | RefResult (RefPat r) -> Types.RefType (Values.type_of_ref r.it)
+  | RefResult (RefTypePat t) -> Types.RefType t
 
 let string_of_num_pat (p : num_pat) =
   match p with
-  | NumPat n -> Value.string_of_num n.it
+  | NumPat n -> Values.string_of_num n.it
   | NanPat nanop ->
     match nanop.it with
-    | Value.I32 _ | Value.I64 _ -> assert false
-    | Value.F32 n | Value.F64 n -> string_of_nan n
+    | Values.I32 _ | Values.I64 _ -> assert false
+    | Values.F32 n | Values.F64 n -> string_of_nan n
 
 let string_of_vec_pat (p : vec_pat) =
   match p with
-  | VecPat (Value.V128 (shape, ns)) ->
+  | VecPat (Values.V128 (shape, ns)) ->
     String.concat " " (List.map string_of_num_pat ns)
 
 let string_of_ref_pat (p : ref_pat) =
   match p with
-  | RefPat r -> Value.string_of_ref r.it
-  | RefTypePat t -> Types.string_of_heap_type t
-  | NullPat -> "null"
+  | RefPat r -> Values.string_of_ref r.it
+  | RefTypePat t -> Types.string_of_refed_type t
 
 let string_of_result r =
   match r with
@@ -358,8 +356,9 @@ let run_action act : Value.t list =
     | None -> Assert.error act.at "undefined export"
     )
 
+
 let assert_nan_pat n nan =
-  let open Value in
+  let open Values in
   match n, nan.it with
   | F32 z, F32 CanonicalNan -> z = F32.pos_nan || z = F32.neg_nan
   | F64 z, F64 CanonicalNan -> z = F64.pos_nan || z = F64.neg_nan
@@ -377,7 +376,7 @@ let assert_num_pat n np =
     | NanPat nanop -> assert_nan_pat n nanop
 
 let assert_vec_pat v p =
-  let open Value in
+  let open Values in
   match v, p with
   | V128 v, VecPat (V128 (shape, ps)) ->
     let extract = match shape with
@@ -392,22 +391,14 @@ let assert_vec_pat v p =
       (List.init (V128.num_lanes shape) (extract v)) ps
 
 let assert_ref_pat r p =
-  match p, r with
-  | RefPat r', r -> Value.eq_ref r r'.it
-  | RefTypePat Types.AnyHT, Instance.FuncRef _ -> false
-  | RefTypePat Types.AnyHT, _
-  | RefTypePat Types.EqHT, (I31.I31Ref _ | Aggr.StructRef _ | Aggr.ArrayRef _)
-  | RefTypePat Types.I31HT, I31.I31Ref _
-  | RefTypePat Types.StructHT, Aggr.StructRef _
-  | RefTypePat Types.ArrayHT, Aggr.ArrayRef _ -> true
-  | RefTypePat Types.FuncHT, Instance.FuncRef _
-  | RefTypePat Types.ExnHT, Exn.ExnRef _
-  | RefTypePat Types.ExternHT, _ -> true
-  | NullPat, Value.NullRef _ -> true
+  match r, p with
+  | r, RefPat r' -> r = r'.it
+  | Instance.FuncRef _, RefTypePat Types.FuncRefType
+  | ExternRef _, RefTypePat Types.ExternRefType -> true
   | _ -> false
 
 let assert_pat v r =
-  let open Value in
+  let open Values in
   match v, r with
   | Num n, NumResult np -> assert_num_pat n np
   | Vec v, VecResult vp -> assert_vec_pat v vp

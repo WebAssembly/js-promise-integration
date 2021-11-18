@@ -118,6 +118,17 @@ struct
 
   let rec pairwise f = function
     | [] -> []
+    | x::xs ->
+      match f x with
+      | None -> map_filter f xs
+      | Some y -> y :: map_filter f xs
+
+  let rec concat_map f = function
+    | [] -> []
+    | x::xs -> f x @ concat_map f xs
+
+  let rec pairwise f = function
+    | [] -> []
     | x1::x2::xs -> f x1 x2 :: pairwise f xs
     | _ -> failwith "pairwise"
 end
