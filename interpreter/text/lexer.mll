@@ -117,6 +117,23 @@ let ext e s u =
   | _ -> assert false
 
 let opt = Lib.Option.get
+
+let v128_shape = function
+  | "i8x16" -> V128.I8x16 ()
+  | "i16x8" -> V128.I16x8 ()
+  | "i32x4" -> V128.I32x4 ()
+  | "i64x2" -> V128.I64x2 ()
+  | "f32x4" -> V128.F32x4 ()
+  | "f64x2" -> V128.F64x2 ()
+  | _ -> assert false
+
+let only shapes s lexbuf =
+  if not (List.mem s shapes) then
+    unknown lexbuf
+
+let except shapes s lexbuf =
+  if (List.mem s shapes) then
+    unknown lexbuf
 }
 
 let sign = '+' | '-'
