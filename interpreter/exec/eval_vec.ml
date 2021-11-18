@@ -1,5 +1,5 @@
-open Pack
-open Value
+open Types
+open Values
 
 module V128Op =
 struct
