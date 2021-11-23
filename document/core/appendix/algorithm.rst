@@ -31,7 +31,10 @@ Value types are representable as sets of enumerations:
    type val_type = I32 | I64 | F32 | F64 | V128 | Funcref | Externref
 
    func is_num(t : val_type | Unknown) : bool =
-     return t = I32 || t = I64 || t = F32 || t = F64 || t = V128 || t = Unknown
+     return t = I32 || t = I64 || t = F32 || t = F64 || t = Unknown
+
+   func is_vec(t : val_type | Unknown) : bool =
+     return t = V128 || t = Unknown
 
    func is_vec(t : val_type) : bool =
      return t = V128 || t = Bot
