@@ -10,6 +10,8 @@ add support for different patterns of non-local control flow to WebAssembly.
 
 * See the [modified spec](https://webassembly.github.io/js-promise-integration/) for details.
 
+* See the [Design Portfolio](https://docs.google.com/document/d/16Us-pyte2-9DECJDfGm5tnUpfngJJOc8jbj54HMqE9Y/edit#heading=h.n1atlriavj6v) for detailed design from a V8 perspective.
+
 Original `README` from upstream repository follows…
 
 # spec
