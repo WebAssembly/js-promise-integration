@@ -23,7 +23,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--wasm", metavar="<wasm-command>", default=os.path.join(interpDir, "wasm"))
 parser.add_argument("--js", metavar="<js-command>")
 parser.add_argument("--generate-js-only", action='store_true')
-parser.add_argument("--failfast", action='store_true')
 parser.add_argument("--out", metavar="<out-dir>", default=outputDir)
 parser.add_argument("--opts", metavar="<options>", default=opts)
 parser.add_argument("file", nargs='*')
@@ -36,6 +35,7 @@ simd_test_files = glob.glob(os.path.join(inputDir, "simd", "*.wast"))
 
 wasmCommand = arguments.wasm
 jsCommand = arguments.js
+generateJsOnly = arguments.generate_js_only
 outputDir = arguments.out
 inputFiles = arguments.file if arguments.file else main_test_files + simd_test_files
 
@@ -122,9 +122,6 @@ class RunTests(unittest.TestCase):
     self._runCommand(('%s -d "%s" -o "%s"') % (wasmCommand, wasm2Path, wast2Path), logPath)
     self._compareFile(wastPath, wast2Path)
 
-    jsPath = self._auxFile(outputPath.replace(".wast", ".js"))
-    logPath = self._auxFile(jsPath + ".log")
-    self._runCommand(('%s -d "%s" -o "%s"') % (wasmCommand, inputPath, jsPath), logPath)
     if jsCommand != None:
       self._runCommand(('%s "%s"') % (jsCommand, jsPath), logPath)
 
