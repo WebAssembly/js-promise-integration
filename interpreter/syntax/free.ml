@@ -64,6 +64,7 @@ let shift s = Set.map (Int32.add (-1l)) (Set.remove 0l s)
 let (++) = union
 let opt free xo = Lib.Option.get (Option.map free xo) empty
 let list free xs = List.fold_left union empty (List.map free xs)
+let opt free xo = Lib.Option.get (Lib.Option.map free xo) empty
 
 let var_type = function
   | StatX x -> types (idx' x)
