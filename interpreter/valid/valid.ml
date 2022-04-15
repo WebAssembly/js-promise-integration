@@ -1535,8 +1535,7 @@ let check_data (c : context) (seg : data_segment) : context =
 
 let check_start (c : context) (start : start) =
   let {sfunc} = start.it in
-  let ft = as_func_str_type (expand_def_type (func c sfunc)) in
-  require (ft = FuncT ([], [])) start.at
+  require (func c sfunc = FuncType ([], [])) start.at
     "start function must not have parameters or results"
 
 let check_import (c : context) (im : import) : context =
@@ -1590,10 +1589,14 @@ let check_module (m : module_) =
     |> check_list check_elem m.it.elems
     |> check_list check_data m.it.datas
   in
-  List.iter (check_func_body c) m.it.funcs;
-  Option.iter (check_start c) m.it.start;
-  ignore (List.fold_left (check_export c) NameSet.empty m.it.exports)
-
-let check_module_with_custom ((m : module_), (cs : Custom.section list)) =
-  check_module m;
-  List.iter (fun (module S : Custom.Section) -> S.Handler.check m S.it) cs
+  List.iter check_type types;
+  List.iter (check_global c1) globals;
+  List.iter (check_table c1) tables;
+  List.iter (check_memory c1) memories;
+  List.iter (check_elem c1) elems;
+  List.iter (check_data c1) datas;
+  List.iter (check_func c) funcs;
+  Lib.Option.app (check_start c) start;
+  ignore (List.fold_left (check_export c) NameSet.empty exports);
+  require (List.length c.memories <= 1) m.at
+    "multiple memories are not allowed (yet)"

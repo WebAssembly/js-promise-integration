@@ -583,8 +583,6 @@ let func f =
   func_with_name "" f
 
 
-(* Tags, tables, memories *)
-
 let tag off i tag =
   Node ("tag $" ^ nat (off + i),
     [Node ("type " ^ var (tag.it.tgtype), [])]
@@ -688,8 +686,6 @@ let global off i g =
 let start s =
   Node ("start " ^ var s.it.sfunc, [])
 
-let custom m mnode (module S : Custom.Section) =
-  S.Handler.arrange m mnode S.it
 
 
 let var_opt = function

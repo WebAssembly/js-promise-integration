@@ -317,7 +317,7 @@ and import' =
 type start = start' Source.phrase
 and start' =
 {
-  sfunc : idx;
+  sfunc : var;
 }
 
 type module_ = module_' Source.phrase

@@ -1086,7 +1086,7 @@ let start s =
   {sfunc}
 
 let start_section s =
-  section Custom.Start (opt (at start) true) None s
+  section `StartSection (opt (at start) true) None s
 
 
 (* Code section *)

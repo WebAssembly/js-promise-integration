@@ -1041,14 +1041,12 @@ struct
 
 
   (* Start section *)
-
   let start st =
     let {sfunc} = st.it in
     var sfunc
 
   let start_section xo =
     section 8 (opt start) xo (xo <> None)
-
 
   (* Code section *)
 

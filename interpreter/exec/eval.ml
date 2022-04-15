@@ -1268,13 +1268,6 @@ let run_data i data =
 let run_start start =
   [Call start.it.sfunc @@ start.at]
 
-
-let init_list f xs (inst : module_inst) : module_inst =
-  List.fold_left f inst xs
-
-let init_list2 f xs ys (inst : module_inst) : module_inst =
-  List.fold_left2 f inst xs ys
-
 let init (m : module_) (exts : extern list) : module_inst =
   if List.length exts <> List.length m.it.imports then
     Link.error m.at "wrong number of imports provided for initialisation";
