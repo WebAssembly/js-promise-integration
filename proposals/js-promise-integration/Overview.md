@@ -103,7 +103,7 @@ Similarly, we are not changing the normal flow of the JavaScript code: it is not
 
 Bracketing the exports and imports like this is strongly analagous to adding an `async` marker to the export, and the wrapping of the import is essentially adding an `await` marker, but unlike JavaScript we do not have to explicitly thread `async`/`await` all the way through all the intermediate WebAssembly functions!
 
-Notice that we did not wrap the `init_state` import, nor did we wrap the exported `get_state` function. These functions will continue to behave as they would normally: `init_state` will return with whatever value the JavaScript code gives it – `2.71` in our case – and `get_state` can be used by any JavaScript code to get the current state.
+Notice that we did not wrap the `init_state` import, nor did we wrap the exported `get_state` function. These functions will continue to behave as they would normally: `init_state` will return with whatever value the JavaScript code gives it—`2.71` in our case—and `get_state` can be used by any JavaScript code to get the current state.
 
 This example uses a shared `Suspender` object that is fixed before the WebAssembly module itself is created. This is simple to use; but has some disadvantages. The primary limitation is that, because the `Suspender` is fixed, it is not possible to support any form of reentrancy of the WebAssembly module; other than that we have just seen with non-wrapped exports and imports. 
 
