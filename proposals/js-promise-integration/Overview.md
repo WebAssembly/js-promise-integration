@@ -91,7 +91,7 @@ We can bridge this synchrony gap by bracketing the exported `update_state` funct
 
 The `suspender.returnPromiseOnSuspend` function takes a function as argument—in this case `update_state`—and wraps it into a new function, which will be the function actually used by JavaScript code. The new function invokes the wrapped function, i.e. calls it with the same arguments and returns the same results. The difference shows up if the inner function ever suspends.
 
-The `suspender.suspendOnReturnedPromise` function also takes a function as argument: – `compute_delta` which was the original imported function. When it is called, the wrapped function calls `compute_delta` and inspects the returned result. If that result is a `Promise` then, instead of returning that `Promise` to the WebAssembly module, suspends the computation instead and `update_state` will return with an updated `Promise`.
+The `suspender.suspendOnReturnedPromise` function also takes a function as argument: `compute_delta`—the original imported function. When it is called, the wrapper calls `compute_delta` and inspects the returned result. If that result is a `Promise` then, instead of returning that `Promise` to the WebAssembly module, the wrapper suspends `suspender`'s WebAssembly computation instead.
 
 The result is that the `Promise` returned by the `compute_delta` is propagated out immediately to the export and the updated version returned by `update_state`. The update here refers to the capture of the suspended computation.
 
