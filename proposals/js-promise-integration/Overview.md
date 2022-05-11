@@ -89,7 +89,7 @@ On the JavaScript side, though, the function we want to use for computing the de
 
 We can bridge this synchrony gap by bracketing the exported `update_state` function and the imported `compute_delta` function using a common `suspender` and wrapping the functions.
 
-The `suspender.returnPromiseOnSuspend` function takes a function as argument – in this case `update_state` – and wraps it into a new function; which will be the function actually used by JavaScript code. The new function invokes the wrapped function: calls it with the same arguments and returns the same results. The difference shows up if the inner function ever suspends.
+The `suspender.returnPromiseOnSuspend` function takes a function as argument—in this case `update_state`—and wraps it into a new function, which will be the function actually used by JavaScript code. The new function invokes the wrapped function, i.e. calls it with the same arguments and returns the same results. The difference shows up if the inner function ever suspends.
 
 The `suspender.suspendOnReturnedPromise` function also takes a function as argument: – `compute_delta` which was the original imported function. When it is called, the wrapped function calls `compute_delta` and inspects the returned result. If that result is a `Promise` then, instead of returning that `Promise` to the WebAssembly module, suspends the computation instead and `update_state` will return with an updated `Promise`.
 
