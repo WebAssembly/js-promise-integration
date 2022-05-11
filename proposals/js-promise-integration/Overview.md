@@ -132,7 +132,7 @@ The method `suspender.returnPromiseOnSuspend(func)` asserts that `func` is a `We
 5. Changes `suspender`'s state to **Inactive**
 6. Returns (or rethrows) `result` to `caller'`
 
-Note that the `returnPromiseOnSuspend` method takes a `WebAssembly.Function` as argument, yet returns a `Function` value. This reflects the constraint that this API may only be used to integrate WebAssembly computations within a JavaScript environment. If the argument is not a `WebAssembly.Function`, or if that entity does not actually contain a WebAssembly function, then a `TypeError` exception is thrown.
+Note that the `Suspender.returnPromiseOnSuspend` method takes a `WebAssembly.Function` as argument, yet returns a `Function` value. This reflects the constraint that this API may only be used to integrate WebAssembly computations within a JavaScript environment. If the argument is not a `WebAssembly.Function`, or if that entity does not actually contain a WebAssembly function, then a `TypeError` exception is thrown.
 
 The method `suspender.suspendOnReturnedPromise(func)` asserts that `func` is a `Function` object with a function type of the form `[t*] -> [externref]` and returns a `WebAssembly.Function` with function type `[t*] -> [externref]` which does the following when called with arguments `args`:
 
