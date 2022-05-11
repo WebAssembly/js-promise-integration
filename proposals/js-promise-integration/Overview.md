@@ -39,7 +39,7 @@ The bracketing of the exports and the imports is achieved using a combination of
 
 There are two expected patterns of use: where a single `Suspender` statically connects exports to imports; and where the connection is established dynamically. Since it is simpler, we will give an example of the first approach here.
 
-It is useful to consider WebAssembly modules to conceputally have "synchronous" and "asynchronous" imports and exports. A primary goal for this API is to enable WebAssembly modules that expect synchronous imports to be connected to implementations that are asynchronous. We achieve this by wrapping both the exports and the imports with functions that mediate between the two worlds. Wrapped exports and imports are connected with a shared Suspender object to facilitate both implementation and composability.
+It is useful to consider WebAssembly modules to conceputally have "synchronous" and "asynchronous" imports and exports. A primary goal for this API is to enable WebAssembly modules that expect synchronous imports to be connected to implementations that are asynchronous. We achieve this by wrapping both the exports and the imports with functions that mediate between the two worlds. Wrapped exports and imports are connected with a shared `Suspender` object to facilitate both implementation and composability.
 
 WebAssembly (`demo.wasm`):
 ```
