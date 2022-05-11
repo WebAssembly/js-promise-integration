@@ -95,7 +95,7 @@ The `suspender.suspendOnReturnedPromise` function also takes a function as argum
 
 The result is that the `Promise` returned by the `compute_delta` is propagated out immediately to the export and the updated version returned by `update_state`. The update here refers to the capture of the suspended computation.
 
-At some point, the original `Promise` created by `compute_delta` will be resolved – when the file `data.txt` has been loaded and parsed. At that point, the suspended computation will be resumed with the value read from the file.
+At some point, the original `Promise` created by `compute_delta` will be resolved, i.e. when the file `data.txt` has been loaded and parsed. At that point, the suspended computation will be resumed with the value read from the file.
 
 It is important to note that the WebAssembly program itself is not aware of having been suspended. From the perspective of the `update_state` function itself, it called an import, got the result and carried on. There has been no change to the WebAssembly code during this process.
 
