@@ -109,7 +109,7 @@ This example uses a shared `Suspender` object that is fixed before the WebAssemb
 
 Instead of associating exports and imports with a `Suspender` object that is fixed at instantiation time, one can parameterize the wrapped exports & imports with a `Suspender`, in addition to any other arguments they would normally have. This involves using the static versions of the `returnPromiseOnSuspend` and  `suspendOnReturnedPromise` functions we add to the `WebAssembly` namespace.
 
-When a wrapped export is invoked it is given the Suspender to use for that invocation. That Suspender is also used when invoking the wrapped import function. This involves communicating the Suspender object received by the export function into the appropriate imports that that export invokes. This is typically more difficult to achieve without good tooling support when generating the WebAssembly module.
+When a wrapped export is invoked it is given the `Suspender` to use for that invocation. That `Suspender` is also used when invoking the wrapped import function. This involves communicating the `Suspender` object received by the export function through to the appropriate imports that that export invokes. This is typically more difficult to achieve without good tooling support when generating the WebAssembly module.
 
 Of course, there are many details being skimmed over, such as the fact that if a synchronous export calls an asynchronous import then the program will trap if the import tries to suspend.
 The following provides a more detailed specification as well as some implementation strategy.
