@@ -83,7 +83,7 @@ fetch('demo.wasm').then(response =>
 });
 ```
 
-In this example, we have a WebAssembly module that is a very simple state machine&mdash; driven from JavaScript. Whenever the JavaScript client code wishes to update the state, it invokes the exported `update_state` function. In turn, the WebAssembly `update_state` function calls an import – `compute_delta` – to compute a delta to add to the state.
+In this example, we have a WebAssembly module that is a very simple state machine—driven from JavaScript. Whenever the JavaScript client code wishes to update the state, it invokes the exported `update_state` function. In turn, the WebAssembly `update_state` function calls an import, `compute_delta`, to compute a delta to add to the state.
 
 On the JavaScript side, though, the function we want to use for computing the delta turns out to need to be run asynchronously; that is, it returns a `Promise` of a `Number` rather than a `Number` itself.
 
