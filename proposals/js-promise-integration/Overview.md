@@ -99,7 +99,7 @@ At some point, the original `Promise` created by `compute_delta` will be resolve
 
 It is important to note that the WebAssembly program itself is not aware of having been suspended. From the perspective of the `update_state` function itself, it called an import, got the result and carried on. There has been no change to the WebAssembly code during this process.
 
-Similarly, we are not changing the normal flow of the JavaScript code: it is not suspended except in the normally expected ways – due to the `Promise` returned by `compute_delta`.
+Similarly, we are not changing the normal flow of the JavaScript code: it is not suspended except in the normally expected ways, e.g. the `Promise` returned by `compute_delta`.
 
 Bracketing the exports and imports like this is strongly analagous to adding an `async` marker to the export, and the wrapping of the import is essentially adding an `await` marker, but unlike JavaScript we do not have to explicitly thread `async`/`await` all the way through all the intermediate WebAssembly functions!
 
