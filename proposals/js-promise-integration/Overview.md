@@ -105,7 +105,7 @@ Bracketing the exports and imports like this is strongly analagous to adding an 
 
 Notice that we did not wrap the `init_state` import, nor did we wrap the exported `get_state` function. These functions will continue to behave as they would normally: `init_state` will return with whatever value the JavaScript code gives it—`2.71` in our case—and `get_state` can be used by any JavaScript code to get the current state.
 
-This example uses a shared `Suspender` object that is fixed before the WebAssembly module itself is created. This is simple to use; but has some disadvantages. The primary limitation is that, because the `Suspender` is fixed, it is not possible to support any form of reentrancy of the WebAssembly module; other than that we have just seen with non-wrapped exports and imports. 
+This example uses a shared `Suspender` object that is fixed before the WebAssembly module itself is created. This is simple to use; but has some disadvantages. The primary limitation is that, because the `Suspender` is fixed, it is not possible to support any form of reentrancy of the WebAssembly module, other than what we have just seen with non-wrapped exports and imports. In particular, only one computation can be "inside" a given `Suspender` at a time—whether suspended or active—which means this approach cannot support multiple concurrent computations within the wrapped WebAssembly exports.
 
 Instead of associating exports and imports with a `Suspender` object the is fixed at instantiation time, we can parameterize the wrapped exports & imports with a `Suspender` – in addition to any other arguments they would have. This involves using the static versions of the `returnPromiseOnSuspend` and  `suspendOnReturnedPromise` functions.
 
