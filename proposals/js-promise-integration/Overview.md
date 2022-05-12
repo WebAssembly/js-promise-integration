@@ -6,7 +6,7 @@ The purpose of this proposal is to provide relatively efficient and relatively e
 The expectation is that the [Stack-Switching proposal](https://github.com/WebAssembly/stack-switching) will eventually extend core WebAssembly with the functionality to implement the operations we provide in this proposal directly within WebAssembly, along with many other valuable stack-switching operations, but that this particular use case for stack switching had sufficient urgency to merit a faster path via just the JS API.
 For more information, please refer to the notes and slides for the [June 28, 2021 Stack Subgroup Meeting](https://github.com/WebAssembly/meetings/blob/main/stack/2021/sg-6-28.md), which details the usage scenarios and factors we took into consideration and summarizes the rationale for how we arrived at the following design.
 
-Following feedback that the Stacks Subgroup had received from TC39, this proposal allows *only* WebAssembly stacks to be suspended&mdash;it makes no changes to the JavaScript language and, in particular, does not indirectly enable support for detached `asycn`/`await` in JavaScript.
+Following feedback that the Stacks Subgroup had received from TC39, this proposal allows *only* WebAssembly stacks to be suspended&mdash;it makes no changes to the JavaScript language and, in particular, does not indirectly enable support for detached `async`/`await` in JavaScript.
 
 This proposal depends (loosely) on the [js-types](https://github.com/WebAssembly/js-types/) proposal, which introduces `WebAssembly.Function` as a subclass of `Function`.
 
@@ -15,20 +15,31 @@ This proposal depends (loosely) on the [js-types](https://github.com/WebAssembly
 The proposal is to add the following interface, constructor, and methods to the JS API, with further details on their semantics below.
 
 ```
+[Exposed=(Window,Worker)]
+partial namespace WebAssembly {
+  WebAssembly.Function suspendOnReturnedPromise(Suspender suspender,Function func);
+  Function returnPromiseOnSuspend(Suspender suspender, WebAssembly.Function func);
+}
+
+[LegacyNamespace=WebAssembly, Exposed=(Window,Worker)]
 interface Suspender {
    constructor();
-   Function suspendOnReturnedPromise(Function func); // import wrapper
-   // overloaded: WebAssembly.Function suspendOnReturnedPromise(WebAssembly.Function func);
-   WebAssembly.Function returnPromiseOnSuspend(WebAssembly.Function func); // export wrapper
+   WebAssembly.Function suspendOnReturnedPromise(Function func);
+   Function returnPromiseOnSuspend(WebAssembly.Function func);
 }
 ```
 
+The core concept embodied here is that an exported function and any imported function that is called eventaully from that exported function form a bracketed pair. 
+
+In order to accomodate asynchronous external functions (aka `Promise` returning functions) any `Promise` value returned by the import is immediately propagated out through the export. Any pending computation is suspended and 'packaged up' in the returned `Promise`. This pending computation will be resumed when the `Promise` is fulfilled.
+
+The bracketing of the exports and the imports is achieved using a combination of function wrappers and shared `Suspender` objects. 
+
 ## Example
 
-The following is an example of how we expect one to use this API.
-In our usage scenarios, we found it useful to consider WebAssembly modules to conceputally have "synchronous" and "asynchronous" imports and exports.
-The current JS API supports only "synchronous" imports and exports.
-The methods of the Suspender interface are used to wrap relevant imports and exports in order to make "asynchronous", with the Suspender object itself explicitly connecting these imports and exports together to facilitate both implementation and composability.
+There are two expected patterns of use: where a single `Suspender` statically connects exports to imports; and where the connection is established dynamically. Since it is simpler, we will give an example of the first approach here.
+
+It is useful to consider WebAssembly modules to conceputally have "synchronous" and "asynchronous" imports and exports. A primary goal for this API is to enable WebAssembly modules that expect synchronous imports to be connected to implementations that are asynchronous. We achieve this by wrapping both the exports and the imports with functions that mediate between the two worlds. Wrapped exports and imports are connected with a shared `Suspender` object to facilitate both implementation and composability.
 
 WebAssembly (`demo.wasm`):
 ```
@@ -72,16 +83,34 @@ fetch('demo.wasm').then(response =>
 });
 ```
 
-In this example, we have a WebAssembly module that is a very simplistic state machine&mdash;every time you update the state, it simply calls an import to compute a delta to add to the state.
-On the JavaScript side, though, the function we want to use for computing the delta turns out to need to be run asynchronously; that is, it returns a Promise of a Number rather than a Number itself.
+In this example, we have a WebAssembly module that is a very simple state machine—driven from JavaScript. Whenever the JavaScript client code wishes to update the state, it invokes the exported `update_state` function. In turn, the WebAssembly `update_state` function calls an import, `compute_delta`, to compute a delta to add to the state.
 
-We can bridge this synchrony gap by using the new JS API.
-In the example, an import of the WebAssembly module is wrapped using `suspender.suspendOnReturnedPromise`, and an export is wrapped using `suspender.returnPromiseOnSuspend`, both using the same `suspender`.
-That `suspender` connects to the two together.
-It makes it so that, if ever the (unwrapped) import returns a Promise, the (wrapped) export returns a Promise, with all the computation in between being "suspended" until the import's Promise resolves.
-The wrapping of the export is essentially adding an `async` marker, and the wrapping of the import is essentially adding an `await` marker, but unlike JavaScript we do not have to explicitly thread `async`/`await` all the way through all the intermediate WebAssembly functions!
+On the JavaScript side, though, the function we want to use for computing the delta turns out to need to be run asynchronously; that is, it returns a `Promise` of a `Number` rather than a `Number` itself.
 
-Meanwhile, the call made to the `init_state` during initialization necessarily returns without suspending, and calls to the export `get_state`  also always returns without suspending, so the proposal still supports the existing "synchronous" imports and exports the WebAssembly ecosystem uses today.
+We can bridge this synchrony gap by bracketing the exported `update_state` function and the imported `compute_delta` function using a common `suspender` and wrapping the functions.
+
+The `suspender.returnPromiseOnSuspend` function takes a function as argument—in this case `update_state`—and wraps it into a new function, which will be the function actually used by JavaScript code. The new function invokes the wrapped function, i.e. calls it with the same arguments and returns the same results. The difference shows up if the inner function ever suspends.
+
+The `suspender.suspendOnReturnedPromise` function also takes a function as argument: `compute_delta`—the original imported function. When it is called, the wrapper calls `compute_delta` and inspects the returned result. If that result is a `Promise` then, instead of returning that `Promise` to the WebAssembly module, the wrapper suspends `suspender`'s WebAssembly computation instead.
+
+The result is that the `Promise` returned by the `compute_delta` is propagated out immediately to the export and the updated version returned by `update_state`. The update here refers to the capture of the suspended computation.
+
+At some point, the original `Promise` created by `compute_delta` will be resolved, i.e. when the file `data.txt` has been loaded and parsed. At that point, the suspended computation will be resumed with the value read from the file.
+
+It is important to note that the WebAssembly program itself is not aware of having been suspended. From the perspective of the `update_state` function itself, it called an import, got the result and carried on. There has been no change to the WebAssembly code during this process.
+
+Similarly, we are not changing the normal flow of the JavaScript code: it is not suspended except in the normally expected ways, e.g. the `Promise` returned by `compute_delta`.
+
+Bracketing the exports and imports like this is strongly analagous to adding an `async` marker to the export, and the wrapping of the import is essentially adding an `await` marker, but unlike JavaScript we do not have to explicitly thread `async`/`await` all the way through all the intermediate WebAssembly functions!
+
+Notice that we did not wrap the `init_state` import, nor did we wrap the exported `get_state` function. These functions will continue to behave as they would normally: `init_state` will return with whatever value the JavaScript code gives it—`2.71` in our case—and `get_state` can be used by any JavaScript code to get the current state.
+
+This example uses a shared `Suspender` object that is fixed before the WebAssembly module itself is created. This is simple to use; but has some disadvantages. The primary limitation is that, because the `Suspender` is fixed, it is not possible to support any form of reentrancy of the WebAssembly module, other than what we have just seen with non-wrapped exports and imports. In particular, only one computation can be "inside" a given `Suspender` at a time—whether suspended or active—which means this approach cannot support multiple concurrent computations within the wrapped WebAssembly exports.
+
+Instead of associating exports and imports with a `Suspender` object that is fixed at instantiation time, one can parameterize the wrapped exports & imports with a `Suspender`, in addition to any other arguments they would normally have. This involves using the static versions of the `returnPromiseOnSuspend` and  `suspendOnReturnedPromise` functions we add to the `WebAssembly` namespace.
+
+When a wrapped export is invoked it is given the `Suspender` to use for that invocation. That `Suspender` is also used when invoking the wrapped import function. This involves communicating the `Suspender` object received by the export function through to the appropriate imports that that export invokes. This is typically more difficult to achieve without good tooling support when generating the WebAssembly module.
+
 Of course, there are many details being skimmed over, such as the fact that if a synchronous export calls an asynchronous import then the program will trap if the import tries to suspend.
 The following provides a more detailed specification as well as some implementation strategy.
 
@@ -92,7 +121,10 @@ A `Suspender` is in one of the following states:
 * **Active**[`caller`] - control is inside the `Suspender`, with `caller` being the function that called into the `Suspender` and is expecting an `externref` to be returned
 * **Suspended** - currently waiting for some promise to resolve
 
-The method `suspender.returnPromiseOnSuspend(func)` asserts that `func` is a `WebAssembly.Function` with a function type of the form `[ti*] -> [to]` and then returns a `WebAssembly.Function` with function type `[ti*] -> [externref]` that does the following when called with arguments `args`:
+We separate the specifications of the `Suspender` interface and the static `suspendOnPromise` and `returnPromiseOnSuspend` functions.
+
+The method `suspender.returnPromiseOnSuspend(func)` asserts that `func` is a `WebAssembly.Function` with a function type of the form `[ti*] -> [to]` and then returns a `Function` with implicit function type `[ti*] -> [externref]` that does the following when called with arguments `args`:
+
 1. Traps if `suspender`'s state is not **Inactive**
 2. Changes `suspender`'s state to **Active**[`caller`] (where `caller` is the current caller)
 3. Lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
@@ -100,13 +132,35 @@ The method `suspender.returnPromiseOnSuspend(func)` asserts that `func` is a `We
 5. Changes `suspender`'s state to **Inactive**
 6. Returns (or rethrows) `result` to `caller'`
 
-The method `suspender.suspendOnReturnedPromise(func)`
-* if `func` is a `WebAssembly.Function`, then asserts that its function type is of the form `[t*] -> [externref]` and returns a `WebAssembly.Function` with function type `[t*] -> [externref]`;
-* otherwise, asserts that `func` is a `Function` and returns a `Function`.
+Note that the `Suspender.returnPromiseOnSuspend` method takes a `WebAssembly.Function` as argument, yet returns a `Function` value. This reflects the constraint that this API may only be used to integrate WebAssembly computations within a JavaScript environment. If the argument is not a `WebAssembly.Function`, or if that entity does not actually contain a WebAssembly function, then a `TypeError` exception is thrown.
 
-In either case, the function returned by `suspender.suspendOnReturnedPromise(func)` does the following when called with arguments `args`:
+The method `suspender.suspendOnReturnedPromise(func)` asserts that `func` is a `Function` object with a function type of the form `[t*] -> [externref]` and returns a `WebAssembly.Function` with function type `[t*] -> [externref]` which does the following when called with arguments `args`:
+
 1. Lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
-2. If `result` is not a returned Promise, then returns (or rethrows) `result`
+2. If `result` is not a returned `Promise`, then returns (or rethrows) `result`
+3. Traps if `suspender`'s state is not **Active**[`caller`] for some `caller`
+4. Lets `frames` be the stack frames since `caller`
+5. Traps if there are any frames of non-suspendable functions in `frames`
+6. Changes `suspender`'s state to **Suspended**
+7. Returns the result of `result.then(onFulfilled, onRejected)` with functions `onFulfilled` and `onRejected` that do the following:
+   1. Asserts that `suspender`'s state is **Suspended** (should be guaranteed)
+   2. Changes `suspender`'s state to **Active**[`caller'`], where `caller'` is the caller of `onFulfilled`/`onRejected`
+   3. * In the case of `onFulfilled`, converts the given value to `externref` and returns that to `frames`
+      * In the case of `onRejected`, throws the given value up to `frames` as an exception according to the JS API of the [Exception Handling](https://github.com/WebAssembly/exception-handling/) proposal
+
+The static function `returnPromiseOnSuspend(func)` asserts that `func` is a `WebAssembly.Function` with a function type of the form `[ti*] -> [to]` and then returns a `Function` with implicit function type `[externref ti*] -> [externref]` that does the following when called with arguments `suspender` followed by `args`:
+
+1. Traps if `suspender`'s state is not **Inactive**
+2. Changes `suspender`'s state to **Active**[`caller`] (where `caller` is the current caller)
+3. Lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
+4. Asserts that `suspender`'s state is **Active**[`caller'`] for some `caller'` (should be guaranteed, though the caller might have changed)
+5. Changes `suspender`'s state to **Inactive**
+6. Returns (or rethrows) `result` to `caller'`
+
+The static function `suspendOnReturnedPromise(func)` asserts that `func` is a `Function` object with implicit type of the form `[t*] -> [externref]` and returns a `WebAssembly.Function` with function type `[externref t*] -> [externref]` that does the following when called with arguments `suspender` followed by `args`:
+
+1. Lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
+2. If `result` is not a returned `Promise`, then returns (or rethrows) `result`
 3. Traps if `suspender`'s state is not **Active**[`caller`] for some `caller`
 4. Lets `frames` be the stack frames since `caller`
 5. Traps if there are any frames of non-suspendable functions in `frames`
@@ -124,40 +178,3 @@ A function is suspendable if it was
 * or generated by [creating a host function](https://webassembly.github.io/spec/js-api/index.html#create-a-host-function) for a suspendable function
 
 Importantly, functions written in JavaScript are *not* suspendable, conforming to feedback from members of [TC39](https://tc39.es/), and host functions (except for the few listed above) are *not* suspendable, conforming to feedback from engine maintainers.
-
-## Implementation
-
-The following is an implementation strategy for this proposal.
-It assumes engine support for stack-switching, which of course is where the main implementation challenges lie.
-
-There are two kinds of stacks: a host (and JavaScript) stack, and a WebAssembly stack. Every WebAssembly stack has a suspender field called `suspender`. Every thread has a host stack.
-
-Every `Suspender` has two stack-reference fields: one called `caller` and one called `suspended`.
-* In the **Inactive** state, both fields are null.
-* In the **Active** state, the `caller` field references the (suspended) stack of the caller, and the `suspended` field is null
-* In the **Suspended** state, the `suspended` field references the (suspended) WebAssembly stack currently associated with the suspender, and the `caller` field is null.
-
-`suspender.returnPromiseOnSuspend(func)(args)` is implemented by
-1. Checking that `suspender.caller` and `suspended.suspended` are null (trapping otherwise)
-2. Letting `stack` be a newly allocated WebAssembly stack associated with `suspender`
-3. Switching to `stack` and storing the former stack in `suspender.caller`
-4. Letting `result` be the result of `func(args)` (or any trap or thrown exception)
-5. Switching to `suspender.caller` and setting it to null
-6. Freeing `stack`
-7. Returning (or rethrowing) `result`
-
-`suspender.suspendOnReturnedPromise(func)(args)` is implemented by
-1. Calling `func(args)`, catching any trap or thrown exception
-2. If `result` is not a returned Promise, returning (or rethrowing) `result`
-3. Checking that `suspender.caller` is not null (trapping otherwise)
-4. Let `stack` be the current stack
-5. While `stack` is not a WebAssembly stack associated with `suspender`:
-   * Checking that `stack` is a WebAssembly stack (trapping otherwise)
-   * Updating `stack` to be `stack.suspender.caller`
-6. Switching to `suspender.caller`, setting it to null, and storing the former stack in `suspender.suspended`
-7. Returning the result of `result.then(onFulfilled, onRejected)` with functions `onFulfilled` and `onRejected` that are implemented by
-   1. Switching to `suspender.suspended`, setting it to null, and storing the former stack in `suspender.caller`
-   2. * In the case of `onFulfilled`, converting the given value to `externref` and returning it
-      * In the case of `onRejected`, rethrowing the given value
-
-The implementation of the function generated by [creating a host function](https://webassembly.github.io/spec/js-api/index.html#create-a-host-function) for a suspendable function is changed to first switch to the host stack of the current thread (if not already on it) and to lastly switch back to the former stack.
