@@ -17,8 +17,8 @@ The proposal is to add the following interface, constructor, and methods to the 
 ```
 [Exposed=(Window,Worker)]
 partial namespace WebAssembly {
-  WebAssembly.Function suspendOnReturnedPromise(Suspender suspender,Function func);
-  Function returnPromiseOnSuspend(Suspender suspender, WebAssembly.Function func);
+  WebAssembly.Function suspendOnReturnedPromise(Function func);
+  Function returnPromiseOnSuspend(WebAssembly.Function func);
 }
 
 [LegacyNamespace=WebAssembly, Exposed=(Window,Worker)]
