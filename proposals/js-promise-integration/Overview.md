@@ -124,7 +124,7 @@ A `Suspender` is in one of the following states:
 
 We separate the specifications of the `Suspender` interface and the static `suspendOnPromise` and `returnPromiseOnSuspend` functions.
 
-The method `suspender.returnPromiseOnSuspend(func)` asserts that `func` is a `WebAssembly.Function` with a function type of the form `[ti*] -> [to]` and then returns a `Function` with implicit function type `[ti*] -> [externref]` that does the following when called with arguments `args`:
+The method `suspender.returnPromiseOnSuspend(func)` asserts that `func` is a `WebAssembly.Function` with a function type of the form `[ti*] -> [to]` and then returns a `WebAssembly.Function` with function type `[ti*] -> [externref]` that does the following when called with arguments `args`:
 
 1. Traps if `suspender`'s state is not **Inactive**
 2. Changes `suspender`'s state to **Active**[`caller`] (where `caller` is the current caller)
@@ -149,7 +149,7 @@ The method `suspender.suspendOnReturnedPromise(func)` asserts that `func` is a `
    3. * In the case of `onFulfilled`, converts the given value to `externref` and returns that to `frames`
       * In the case of `onRejected`, throws the given value up to `frames` as an exception according to the JS API of the [Exception Handling](https://github.com/WebAssembly/exception-handling/) proposal
 
-The static function `returnPromiseOnSuspend(func)` asserts that `func` is a `WebAssembly.Function` with a function type of the form `[ti*] -> [to]` and then returns a `Function` with implicit function type `[externref ti*] -> [externref]` that does the following when called with arguments `suspender` followed by `args`:
+The static function `returnPromiseOnSuspend(func)` asserts that `func` is a `WebAssembly.Function` with a function type of the form `[ti*] -> [to]` and then returns a `WebAssembly.Function` with function type `[externref ti*] -> [externref]` that does the following when called with arguments `suspender` followed by `args`:
 
 1. Traps if `suspender`'s state is not **Inactive**
 2. Changes `suspender`'s state to **Active**[`caller`] (where `caller` is the current caller)
@@ -158,7 +158,7 @@ The static function `returnPromiseOnSuspend(func)` asserts that `func` is a `Web
 5. Changes `suspender`'s state to **Inactive**
 6. Returns (or rethrows) `result` to `caller'`
 
-The static function `suspendOnReturnedPromise(func)` asserts that `func` is a `Function` object with implicit type of the form `[t*] -> [externref]` and returns a `WebAssembly.Function` with function type `[externref t*] -> [externref]` that does the following when called with arguments `suspender` followed by `args`:
+The static function `suspendOnReturnedPromise(func)` asserts that `func` is a `WebAssembly.Function` object with type of the form `[t*] -> [externref]` and returns a `WebAssembly.Function` with function type `[externref t*] -> [externref]` that does the following when called with arguments `suspender` followed by `args`:
 
 1. Lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
 2. If `result` is not a returned `Promise`, then returns (or rethrows) `result`
