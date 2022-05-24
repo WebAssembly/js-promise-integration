@@ -273,7 +273,7 @@ Importantly, functions written in JavaScript are *not* suspendable, conforming t
 
    JavaScript already has a way of managing computations that can suspend. This is semantically connected to JavaScript `Promise` objects and the `async` function syntax. However, a more important reason is that it is important, in the context of JavaScript, that we do not introduce language features that can affect the behavior of existing programs.
 
-1. **Why does the API only apply t `WebAssembly.Function` values, and not `Function`s?**
+1. **Why does the API only apply to `WebAssembly.Function` values, and not `Function`s?**
 
    The core interface elements in this API refer to the use of `WebAssembly.Function` entities rather than plain `Function` entities. There are some potential questions and issues about this choice:
 
