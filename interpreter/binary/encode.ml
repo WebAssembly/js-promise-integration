@@ -137,9 +137,6 @@ struct
     | VarHT x -> var_type u32 x
     | _ -> assert false
 
-  let vec_type = function
-    | V128Type -> vs7 (-0x05)
-
   let ref_type = function
     | (Null, AnyHT) -> s7 (-0x12)
     | (Null, EqHT) -> s7 (-0x13)
