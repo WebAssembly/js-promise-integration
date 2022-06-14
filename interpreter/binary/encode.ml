@@ -104,9 +104,6 @@ struct
   let vec_type = function
     | V128Type -> s7 (-0x05)
 
-  let vec_type = function
-    | V128Type -> vs7 (-0x05)
-
   let ref_type = function
     | FuncRefType -> s7 (-0x10)
     | ExternRefType -> s7 (-0x11)
