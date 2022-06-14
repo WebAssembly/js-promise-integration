@@ -104,9 +104,6 @@ struct
     | F32Type -> vs7 (-0x03)
     | F64Type -> vs7 (-0x04)
 
-  let vec_type = function
-    | V128Type -> vs7 (-0x05)
-
   let ref_type = function
     | FuncRefType -> vs7 (-0x10)
     | ExternRefType -> vs7 (-0x11)
