@@ -241,9 +241,10 @@ if the value of `promising` is `"last"`.
 
 If the value of `promising` is `"none"`, then this specification does not apply to the constructed function.
 
-Note that the return type of the `WebAssembly.Function` is fixed to `externref`. This is because the wrapped function may return a `Promise`. Because the function is not always expected to return a `Promise`&mdash;if the export returns normally as opposed to suspending then it will typically not return a `Promise`; however, type consistentency requires that any non-`Promise` return value must be boxed as an `externref`. This boxing is implemented as part of the constructed function.
+Note that the return type of the `WebAssembly.Function` is fixed to `externref`. This is because the constructed function may return a `Promise`. The constructed function is not always expected to return a `Promise`&mdash;if the `func` returns normally as opposed to suspending then it will typically not return a `Promise`.  Type consistentency requires that any non-`Promise` return value must be boxed as an `externref`. This boxing is implemented as part of the constructed function.
 
-0. Let `func` be the function that is created using this variant of the `WebAssembly.Function` constructor. This function, when called with arguments `args`, will:
+0. Let `func` be the function that is passed to the `WebAssembly.Function` constructor, 
+1. the function that is created using this variant of the `WebAssembly.Function` constructor will, when called with arguments `args`:
 1. Allocate a new `Suspender` object and pass it as an additional argument to `args` to the `func` argument in the `WebAssembly.Function` constructor.
 2. Changes the state of `suspender`'s state to **Active**[`caller`] (where `caller` is the current caller)
 3. Lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
