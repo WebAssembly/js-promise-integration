@@ -8,7 +8,7 @@ For more information, please refer to the notes and slides for the [June 28, 202
 
 Following feedback that the Stacks Subgroup had received from TC39, this proposal allows *only* WebAssembly stacks to be suspended&mdash;it makes no changes to the JavaScript language and, in particular, does not indirectly enable support for detached `async`/`await` in JavaScript.
 
-In addition, this proposal does not imply any change to the WebAssembly language. There are no new WebAssembly instructions, nor are there any additional WebAssembly types specified. Semantically, all of the changes outlined are at the boundary between WebAssembly and JavaScript.
+In addition, this proposal does not imply any change to either JavaScript or to the WebAssembly language. There are no new WebAssembly instructions, nor are there any additional WebAssembly types specified. Semantically, all of the changes outlined are at the boundary between WebAssembly and JavaScript.
 
 This proposal depends heavily on the [js-types](https://github.com/WebAssembly/js-types/) proposal, which introduces `WebAssembly.Function` as a subclass of `Function`.
 
@@ -105,12 +105,14 @@ and the revised import is:
 We prepare the JavaScript `compute_delta` function for our use by constructing a `WebAssembly.Function` object from it, and setting the `suspending` attribute to `first`:
 ```
 var suspending_compute_delta = new WebAssembly.Function(
-  {parameters:[],results:['externref']},
+  {parameters:[],results:['f64']},
   compute_delta,
   {suspending:"first"}
 )
 ```
 There are three possiblities for assigning a value to the `suspending` attribute: `"first"`, `"last"` and `"none"`. These relate to which argument of `$compute_delta_import` actually has the suspender. In our case it makes no difference whether we use `"first"` or `"last"` because the are no other arguments. Using `"none"` is a signal that the function is not actually suspending.
+
+The return type of `suspending_compute_delta` is an `"f64"`, because that is what the WebAssembly module is importing. However, the actual function that is executed returns a `Promise` of a `f64`. The importing WebAssembly module never sees that `Promise` object&mdash;it is consumed by the function generated via teh `WebAssembly.Function` constructor.
 
 The complete import object looks like:
 ```
@@ -133,6 +135,7 @@ The process of wrapping exports is a little different to wrapping imports; in pa
 ```
 var sampleModule = WebAssembly.instantiate(demoBuffer,importObj);
 var update_state = new WebAssembly.function(
+  {parameters:[], results:['externref']},
   sampleModule.exports.update_state_export,
   {promising : "first"})
 ```
@@ -224,19 +227,21 @@ Importantly, functions written in JavaScript are *not* suspendable, conforming t
 
 The constructor for `WebAssembly.Function`, when it has a `promising` attribute in its `usage` dictionary, and a `type` argument of the form:
 ```
-{ parameters: ["t0", .., "tn"], results: [r0, .., rk]}
+{ parameters: ["t0", .., "tn"], results: ['externref'']}
 ```
 expects its `func` argument to be a WebAssembly function of type:
 ```
 (params externref t0 .. tn) (results r0 .. rk)
 ```
-if the value of `promising` is `"first"`, and of type:
+if the value of `promising` is `"first"`, and `func` should be of type:
 ```
 (params t0 .. tn externref) (results r0 .. rk)
 ```
 if the value of `promising` is `"last"`.
 
 If the value of `promising` is `"none"`, then this specification does not apply to the constructed function.
+
+Note that the return type of the `WebAssembly.Function` is fixed to `externref`. This is because the wrapped function may return a `Promise`. Because the function is not always expected to return a `Promise`&mdash;if the export returns normally as opposed to suspending then it will typically not return a `Promise`; however, type consistentency requires that any non-`Promise` return value must be boxed as an `externref`. This boxing is implemented as part of the constructed function.
 
 0. Let `func` be the function that is created using this variant of the `WebAssembly.Function` constructor. This function, when called with arguments `args`, will:
 1. Allocate a new `Suspender` object and pass it as an additional argument to `args` to the `func` argument in the `WebAssembly.Function` constructor.
