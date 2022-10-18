@@ -23,8 +23,8 @@ partial namespace WebAssembly {
   enum Position { "first", "last", "none"}; /* A special argument may be the last or the first one */
 
   dictionary Usage {
-    Position suspending = "none"; /* By default, functions dont suspend */
-    Position promising = "none";  /* By default, functions dont reify Promises */
+    Position suspending = "none"; // By default, functions dont suspend
+    Position promising = "none";  // By default, functions dont reify Promises
   }
 
   [Constructor(FunctionType type, function func, Usage usage)]
@@ -45,7 +45,7 @@ If the `suspending` attribute is set on an imported function, then the `suspendi
 
 This way a WebAssembly module can import a `suspending` function that wraps an async JavaScript function so that the WebAssembly module's computation suspends until the `Promise` is resolved, letting the WebAssembly code nearly treat the call as a synchronous call.
 
-But, for that to work, the WebAssembly module needs a way to get a `Suspender` to supply as the first/last argument to the imported function. This is addressed by marking an exported function with the `promising` attribute. The `promising` attribute is used to indicate that the wrapped function should be executed on a new suspendible stack, i.e. a `Suspender`. In addition, the `promising` function will return a `Promise` if WebAssembly computation is suspended.
+But, for that to work, the WebAssembly module needs a way to get a `Suspender` to supply as the first/last argument to the imported function. This is addressed by marking an exported function with the `promising` attribute. The `promising` attribute is used to indicate that the wrapped function should be executed on a new suspendible stack, i.e. a `Suspender`. In addition, the `promising` function will return a `Promise` which will be resolved either with the successful results of the export or rejected if the export throws an exception.
 
 The `Suspender` that the wrapped function is executed on is supplied by the engine as its first/last argument.
 This way it can be passed to `suspending` functions down the call stack so that they can suspend all WebAssembly computation up to the respective `promising` function call. At that point, the `promising` function returns a `Promise` that will resolve once the `Promise` that prompted the suspension resolves and the subsequently resumed WebAssembly computation completes.
@@ -58,7 +58,7 @@ It is the responsibility of the WebAssembly program to ensure that this `Suspend
 
 `Suspender` objects are _not_ directly visible to either the JavaScript programmer or the WebAssembly programmer. The latter sees them as opaque `externref` values and the former only sees them if they were exported by the WebAssembly module as an exported global variable or passed as an argument to an unmarked import.
 
-In particular, a `suspending` function does not actually pass its first/last argument to its wrapped function; that argument is only used to suspend the containing computation should the wrapped function return a `Promise`.
+In particular, a `suspending` function does not actually pass its first/last argument to its imported function; that argument is only used to suspend the containing computation should the wrapped function return a `Promise`.
 
 ## Examples
 Considering the expected applications of this API, we can consider two simple scenarios: that of a so-called _legacy C_ application&mdash;which is written in the style of a non-interactive application using synchronous APIs for reading and writing files&mdash;and the _responsive C_ application; where the application was typically written using an eventloop internal architecture but still uses synchronous APIs for I/O.
@@ -103,7 +103,8 @@ The import helper implements the function we want&mdash;`compute_delta`&mdash;in
 ```
 and the revised import is:
 ```
-    (import "js" "compute_delta" (func $compute_delta_import (param externref) (result f64)))
+    (import "js" "compute_delta" 
+      (func $compute_delta_import (param externref) (result f64)))
 ```
 We prepare the JavaScript `compute_delta` function for our use by constructing a `WebAssembly.Function` object from it, and setting the `suspending` attribute to `first`:
 ```
@@ -115,7 +116,7 @@ var suspending_compute_delta = new WebAssembly.Function(
 ```
 There are three possiblities for assigning a value to the `suspending` attribute: `"first"`, `"last"` and `"none"`. These relate to which argument of `$compute_delta_import` actually has the suspender. In our case it makes no difference whether we use `"first"` or `"last"` because the are no other arguments. Using `"none"` is a signal that the function is not actually suspending.
 
-The return type of `suspending_compute_delta` is an `"f64"`, because that is what the WebAssembly module is importing. However, the actual function that is executed returns a `Promise` of a `f64`. The importing WebAssembly module never sees that `Promise` object&mdash;it is consumed by the function generated via teh `WebAssembly.Function` constructor.
+The return type of `suspending_compute_delta` is an `"f64"`, because that is what the WebAssembly module is importing. However, the actual function that is executed returns a `Promise` of a `f64`. The importing WebAssembly module never sees that `Promise` object&mdash;it is consumed by the function generated via the `WebAssembly.Function` constructor.
 
 The complete import object looks like:
 ```
@@ -184,6 +185,10 @@ The required change is located in the call to `$compute_delta_import`:
     )
 ```
 
+Not all applications can equally tolerate being reentrant in this way. Certainly, languages in the C family do not make this straightforward. In fact, an application would typically have to have been engineered appropriately, by, for example, ensuring that important global state is properly managed.
+
+However, desktop applications, written for operating systems such as Mac OS and Windows, are often already structured in terms of an event loop that monitors input events and schedules UI effects. Such an application can often make good use of JSPI: perhaps by removing the application's event loop and replacing it with the browser's event loop.
+
 ## Specification
 
 The `Suspender` object specified here is not made available to JavaScript via this API. Unless exported via some form of back-channel it will not participate in normal JavaScript execution. However, it does have an internal role within the API and so it is specified.
@@ -228,8 +233,7 @@ The WebAssembly function returned by `WebAssembly.Function` is a function whose 
 
 A function is suspendable if it was
 * defined by a WebAssembly module,
-* returned by `suspendOnReturnedPromise`,
-* returned by `returnPromiseOnSuspend`,
+* returned by `WebAssembly.function`,
 * or generated by [creating a host function](https://webassembly.github.io/spec/js-api/index.html#create-a-host-function) for a suspendable function
 
 Importantly, functions written in JavaScript are *not* suspendable, conforming to feedback from members of [TC39](https://tc39.es/), and host functions (except for the few listed above) are *not* suspendable, conforming to feedback from engine maintainers.
@@ -252,16 +256,23 @@ if the value of `promising` is `"last"`.
 
 If the value of `promising` is `"none"`, then this specification does not apply to the constructed function.
 
-Note that the return type of the `WebAssembly.Function` is fixed to `externref`. This is because the constructed function may return a `Promise`. The constructed function is not always expected to return a `Promise`&mdash;if the `func` returns normally as opposed to suspending then it will typically not return a `Promise`.  Type consistentency requires that any non-`Promise` return value must be boxed as an `externref`. This boxing is implemented as part of the constructed function.
+Note that the return type of the `WebAssembly.Function` is fixed to `externref`. This is because the constructed function returns a `Promise`.
 
 0. Let `func` be the function that is passed to the `WebAssembly.Function` constructor, 
 1. the function that is created using this variant of the `WebAssembly.Function` constructor will, when called with arguments `args`:
-1. Allocate a new `Suspender` object and pass it as an additional argument to `args` to the `func` argument in the `WebAssembly.Function` constructor.
-2. Changes the state of `suspender`'s state to **Active**[`caller`] (where `caller` is the current caller)
-3. Lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
-4. Asserts that `suspender`'s state is **Active**[`caller'`] for some `caller'` (should be guaranteed, though the caller might have changed)
-5. Changes `suspender`'s state to **Moribund**. This is also an opportunity to release any execution resources associated with the suspender. A **Moribund** suspender may not be used to suspend computations.
-6. Returns (or rethrows) `result` to `caller'`
+1. Let `promise` be a new `Promise` constructed as though by the `Promise`(`fn`) constructor, where `fn` is a function of two arguments `accept` and `reject` that:
+   1. lets `suspender` be a new `Suspender` object and passes it as an additional argument to `args` to the `func` argument in the `WebAssembly.Function` constructor:
+      1. If `promising` is `"first"`, then `suspender` is the first argument, followed by `args`;
+      2. if `promising` is `"last"`, then `suspender` is the last argument, after `args`.
+   2. sets the state of `suspender` to **Active**[`caller`] (where `caller` is the current caller)
+   3. lets `result` be the result of calling `func(suspender,...args)` (or any trap or thrown exception)
+   4. asserts that `suspender`'s state is **Active**[`caller'`] for some `caller'` (should be guaranteed, though the caller might have changed)
+   5. changes `suspender`'s state to **Moribund**. This is also an opportunity to release any execution resources associated with the suspender. A **Moribund** suspender may not be used to suspend computations.
+   6. If `result` is not an exception or a trap, calls the `accept` function argument with the appropriate value.
+   6. If `result` is an exception, or if it is a trap, calls the `reject` function with the raised exception.
+6. Returns `promise` to `caller`
+
+Note that, if the inner function `func` suspends (by invoking a `Promise` returning import), then the `promise` will be returned to the `caller` before `func` returns. When `func` completes eventually, then `promise` will be resolved&mdash;and one of `accept` or `reject` will be invoked by the browser's microtask runner.
 
 ## Frequently Asked Questions
 
