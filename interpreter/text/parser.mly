@@ -492,10 +492,6 @@ num :
   | INT { $1 @@ $sloc }
   | FLOAT { $1 @@ $sloc }
 
-num_list:
-  | /* empty */ { [] }
-  | num num_list { $1 :: $2 }
-
 var :
   | NAT { fun c lookup -> nat32 $1 $sloc @@ $sloc }
   | VAR { fun c lookup -> lookup c (var $1 $sloc) @@ $sloc }
