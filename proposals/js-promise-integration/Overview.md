@@ -50,20 +50,22 @@ Considering the expected applications of this API, we can consider two simple sc
 
 ### Supporting Access to Asynchronous Functions
 
-Our first example looks quite trivial, with the WebAssembly module:
+Our first example seems quite trivial, with the WebAssembly module:
 
 ```wasm
 (module
-    (import "js" "init_state" (func $init_state (result f64)))
-    (import "js" "compute_delta" (func $compute_delta (result f64)))
-    (global $state f64)
-    (func $init (global.set $state (call $init_state)))
-    (start $init)
-    (func $get_state (export "get_state") (result f64) (global.get $state))
-    (func $update_state (export "update_state") (result f64)
-      (global.set (f64.add (global.get $state) (call $compute_delta)))
-      (global.get $state)
-    )
+  (import "js" "init_state" (func $init_state (result f64)))
+  (import "js" "compute_delta" (func $compute_delta (result f64)))
+  (global $state f64)
+  (func $init (global.set $state (call $init_state)))
+  (start $init)
+  (func $get_state (export "get_state") (result f64) (global.get $state))
+  (func $update_state (export "update_state") (result f64)
+    (local $delta f64)
+    (local.set $delta (call $compute_delta))
+    (global.set (f64.add (global.get $state) (local.get $delta) ))
+    (global.get $state)
+  )
 )
 ```
 
@@ -80,19 +82,13 @@ var compute_delta = () =>
     .then(txt => parseFloat(txt));
 ```
 
-In order to prepare our code for asynchrony, we wrap the `compute_delta` function using `WebAssembly.suspending` function:
-
-```js
-var suspending_compute_delta = WebAssembly.suspending(compute_delta);
-```
-
-The complete import object looks like:
+In order to prepare our code for asynchrony, we wrap the `compute_delta` function using `WebAssembly.suspending` function. The complete import object looks like:
 
 ```js
 var init_state = () => 2.71;
 var importObj = {js: {
     init_state: init_state,
-    compute_delta:suspending_compute_delta}};
+    compute_delta:WebAssembly.suspending(compute_delta)}};
 ```
 
 In addition to preparing the import, we must also handle the export side. The process of wrapping exports is a little different to wrapping imports; in part because we prepare imports before instantiating modules and we wrap exports afterwards:
@@ -131,42 +127,81 @@ partial namespace WebAssembly {
   Suspending suspending(Function fun);
 
   interface Suspending {
-    [Internal]Function wrappedFunction;
+    [Unscopable] Function wrappedFunction;
   }
 }
 ```
 
-The `Suspending` object's role is primarily to annotate a function in a way that enables the `WebAssembly.instantiate` function to implement the import in a special way.
+The `Suspending` object's role is primarily to annotate a function in a way that enables the `WebAssembly.instantiate` function to implement the import in a special way.  Note that `WebAssembly.Suspending` has no externally visible attributes other than those inherited from `Object`. However, it does have an internal attribute -- the `wrappedFunction` -- which is referenced in the specifics of the algorithms below.
 
-#### `WebAssembly.suspending`
+### Exporting Promises
 
-The `WebAssembly.suspending` function takes a JavaScript `Function` as an argument and returns a `WebAssembly.Suspending` object. Note that `WebAssembly.Suspending` has no externally visible attributes other than those inherited from `Object`. However, it does have an internal attribute -- the `wrappedFunction` -- which is referenced in the specifics of the algorithm below.
+The `WebAssembly.promising` function takes a WebAssembly function, as exported by a WebAssembly instance, and returns a JavaScript function that returns a `Promise`. The returned `Promise` will be resolved by the result of invoking the exported WebAssembly function.
 
->Note the argument to `WebAssembly.suspending` is assumed to be a *JavaScript function*. I.e., even if a `WebAssembly.Function` is passed to `WebAssembly.suspending`, it is interpreted as a JavaScript function. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of calling WebAssembly functions that may return `Promise`s.
+#### `WebAssembly.promising`(*`wasmFun`*)
 
-#### `WebAssembly.promising`
+The `WebAssembly.promising` function takes a WebAssembly function -- i.e., not a JavaScript function -- and returns a JavaScript function that evaluates *`wasmFun`* and returns a `Promise` with the result:
 
-The `WebAssembly.promising` function takes a WebAssembly function -- i.e., not a JavaScript function -- and converts it to a JavaScript function that returns a `Promise`.
+0. Let `wasmFunc` be the exported WebAssembly function that is passed to the `WebAssembly.promising` function,
+1. create a function that will, when called with arguments `args`:
+    1. Let `promise` be a new `Promise` constructed as though by the `Promise`(`fn`) constructor, where `fn` is a function of two arguments `accept` and `reject` that:
+        1. lets `context` be a new [execution context](https://tc39.es/ecma262/#sec-execution-contexts), and sets the *running execution context* to `context` (pushing the existing *running execution context* onto the *execution context stack*).
+        2. lets `result` be the result of calling `wasmFunc(args)` (or any trap or thrown exception)
+        3. releases the execution `context`, which includes releasing any execution resources associated with the context.
+        4. If `result` is not an exception or a trap, calls the `accept` function argument with the appropriate value.
+        5. If `result` is an exception, or if it is a trap, calls the `reject` function with the raised exception.
+    2. Returns `promise` to `caller`
+2. Return created function as value of `WebAssembly.promising`
+
+Note that, if the function `wasmFunc` suspends (by invoking a `Promise` returning import), then the `promise` will be returned to the `caller` before `wasmFunc` returns. When `wasmFunc` completes eventually, then `promise` will be resolved -- and one of `accept` or `reject` will be invoked by the browser's microtask runner.
 
 ### Suspendable functions
 
->In the following description we use the term *execution context* to denote a potentially suspendable computation. This should not be confused with other uses of the term.
+We use the `Suspendable` marker to signal to WebAssembly that a given function should cause a suspension of WebAssembly execution.
 
-We modify the *read-the-imports* algorithm in the WebAssembly [JS-API](https://webassembly.github.io/spec/js-api/index.html#read-the-imports) specification to account for functions marked as `Suspending`. In particular, we add the clause:
+#### `WebAssembly.suspending`(*`func`*)
 
-1. Let *`o`* be `$Get$`(*`importObject`*, *`moduleName`*).
-1. If *`o`* is of the form *Suspendable*,
-  1.  Let *`v`* be  `$Get$`(*`o`*, *`wrappedFunction`*).
-    1. If `$IsCallable$`(*`v`*) is false, throw a `LinkError` exception.
-      1. Create a *suspending function* from *`v`* and *`functype`*, and let *`funcaddr`* be the result.
+The `WebAssembly.suspending` function takes a JavaScript `Function` as an argument and returns a `WebAssembly.Suspending` object, with the *`func`* argument embedded as the value of the hidden `wrappedFunction` property.
+
+>Note the *`func`* argument is expected to be a *JavaScript function*. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of WebAssembly functions passed to `WebAssembly.suspending`.
+
+1. If IsCallable(*func*) is `false`, throw a `TypeError` exception.
+1. Let *suspendingProto* be `WebAssembly.Suspendable.%prototype%`
+1. Let *susp* be the result of `OrdinaryObjectCreate`(*`suspendingProto`*)
+1. Perform `!CreateDataPropertyOrThrow`(*susp*,`"wrappedFunction"`,*func*)
+1. Return *susp*
+
+The most direct way that external functions can be accessed from a WebAssembly module is via imports.[^WebAssembly.Function] Therefore, we modify the *read-the-imports* algorithm to account for imports annotated as `Suspendable`.
+
+[^WebAssembly.Function]: The other way is by using a `WebAssembly.Function` constructor, as proposed in the js-types proposal. However, the semantics of `WebAssembly.Function` also revolve around modules and importing.
+
+We replace the section dealing with functions:
+
+3.4. If *externtype* is of the form `func` *functype* ...
+
+with:
+
+3.4. If *externtype* is of the form `func` *functype*
+
+  1. If `$IsCallable$`(*`v`*) is `true`
+      1. If *`v`* has a `FunctionAddress` internal slot, and therefore is an *Exported Function*,
+          * Let *`funcaddr`* be the value of *`v`*'s `FunctionAddress` internal slot.
+      1. Otherwise,
+          * *Create a host function* from *`v`* and *`functype`*, and let *`funcaddr`* be the result.
+  1. If *`v`* is of the form *`Suspendable`*
+      1. Let *`func`* be  `$Get$`(*`v`*, *`wrappedFunction`*).
+      1. Assert `$IsCallable$`(*`func`*).
+      1. Create a *suspending function* from *`func`* and *`functype`*, and let *`funcaddr`* be the result.
+  1. If `$IsCallable$`(*`v`*) is `false` and *`v`* is not of the form *`Suspendable`* throw a `LinkError` exception.
+  1. Let `*index*` be the number of external functions in *`imports`*. This value `*index*` is known as the *index of the host function* *`funcaddr`*.
   1. Let *`externfunc`* be the external value *`funcaddr`*
   1. Append *`externfunc`* to *`imports`*.
 
 The *suspending function* is a function whose behavior is determined as follows:
 
-1. Let `context` refer to the execution context that is current at the time of a call to the *suspending function*. Let `func` be the wrapped function that was used when creating the *suspending function*.
+1. Let `context` refer to the execution context that is current at the time of a call to the *suspending function*. Let `wfunc` be the wrapped function that was used when creating the *suspending function*.
 1. Traps if `context`'s state is not **Active**[`caller`] for some `caller`
-1. Let `result` be the result of calling `func(args)` (or any trap or thrown exception) where `args` are the additional arguments passed to the call when the imported function was called from the WebAssembly module.
+1. Let `result` be the result of calling `wfunc(args)` (or any trap or thrown exception) where `args` are the additional arguments passed to the call when the imported function was called from the WebAssembly module.
 1. Let `promise` be the result of:
    1. If `result` is a normal result, then invoke `Promise.resolve`(`result`)
       >Note: if `result` already is a `Promise`, then this is equivalent to setting `promise` to `result`.
@@ -179,25 +214,6 @@ The *suspending function* is a function whose behavior is determined as follows:
    2. Changes `context`'s state to **Active**[`caller'`], where `caller'` is the caller of `onFulfilled`/`onRejected`
    3. * In the case of `onFulfilled`, converts the given value to `externref` and returns that to `frames`
       * In the case of `onRejected`, throws the given value up to `frames` as an exception according to the JS API of the [Exception Handling](https://github.com/WebAssembly/exception-handling/) proposal.
-
-### Exporting Promises
-
-The `WebAssembly.promising` function is used to create a JavaScript `Promise` returning function from a function exported from a WebAssembly instance.
-
-0. Let `func` be the exported WebAssembly function that is passed to the `WebAssembly.promising` function,
-1. create a function that will, when called with arguments `args`:
-    1. Let `promise` be a new `Promise` constructed as though by the `Promise`(`fn`) constructor, where `fn` is a function of two arguments `accept` and `reject` that:
-        1. lets `context` be a new execution context.
-        2. sets the state of `context` to **Active**[`caller`] (where `caller` is the current caller)
-        3. lets `result` be the result of calling `func(args)` (or any trap or thrown exception)
-        4. asserts that `context`'s state is **Active**[`caller'`] for some `caller'` (should be guaranteed, though the caller might have changed)
-        5. releases the execution `context`, which includes releasing any execution resources associated with the context.
-        6. If `result` is not an exception or a trap, calls the `accept` function argument with the appropriate value.
-        7. If `result` is an exception, or if it is a trap, calls the `reject` function with the raised exception.
-    2. Returns `promise` to `caller`
-2. Return created function as value of `WebAssembly.promising`
-
-Note that, if the inner function `func` suspends (by invoking a `Promise` returning import), then the `promise` will be returned to the `caller` before `func` returns. When `func` completes eventually, then `promise` will be resolved -- and one of `accept` or `reject` will be invoked by the browser's microtask runner.
 
 ## Frequently Asked Questions
 
