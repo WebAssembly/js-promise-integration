@@ -202,18 +202,18 @@ The *suspending function* is a function whose behavior is determined as follows:
 1. Let `context` refer to the execution context that is current at the time of a call to the *suspending function*. Let `wfunc` be the wrapped function that was used when creating the *suspending function*.
 1. Traps if `context`'s state is not **Active**[`caller`] for some `caller`
 1. Let `result` be the result of calling `wfunc(args)` (or any trap or thrown exception) where `args` are the additional arguments passed to the call when the imported function was called from the WebAssembly module.
-1. Let `promise` be the result of:
-   1. If `result` is a normal result, then invoke `Promise.resolve`(`result`)
-      >Note: if `result` already is a `Promise`, then this is equivalent to setting `promise` to `result`.
-   2. If `result` is an exception or error, then invoke `Promise.reject`(`result`)  
-1. Lets `frames` be the stack frames since `caller`
-1. Traps if there are any frames of non-WebAssembly functions in `frames`
-1. Changes `context`'s state to **Suspended**
-1. Returns the result of `promise.then(onFulfilled, onRejected)` with functions `onFulfilled` and `onRejected` that do the following:
-   1. Asserts that `context`'s state is **Suspended** (should be guaranteed)
-   2. Changes `context`'s state to **Active**[`caller'`], where `caller'` is the caller of `onFulfilled`/`onRejected`
-   3. * In the case of `onFulfilled`, converts the given value to `externref` and returns that to `frames`
-      * In the case of `onRejected`, throws the given value up to `frames` as an exception according to the JS API of the [Exception Handling](https://github.com/WebAssembly/exception-handling/) proposal.
+1. If `result` is a `Promise`:
+    1. Lets `frames` be the stack frames since `caller`
+    1. Traps if there are any frames of non-WebAssembly functions in `frames`
+    1. Changes `context`'s state to **Suspended**
+    1. Returns the result of `promise.then(onFulfilled, onRejected)` with functions `onFulfilled` and `onRejected` that do the following:
+        1. Asserts that `context`'s state is **Suspended** (should be guaranteed)
+        2. Changes `context`'s state to **Active**[`caller'`], where `caller'` is the caller of `onFulfilled`/`onRejected`
+        3. * In the case of `onFulfilled`, converts the given value to `externref` and returns that to `frames`
+           * In the case of `onRejected`, throws the given value up to `frames` as an exception according to the JS API of the [Exception Handling](https://github.com/WebAssembly/exception-handling/) proposal.
+1. Otherwise, returns the result to the caller:
+    * If `result` is a normal value, return as value of *suspending function*
+    * If `result` is an exception, throw exception.
 
 ## Frequently Asked Questions
 
