@@ -18,23 +18,23 @@ This proposal allows a WebAssembly application to interact with JavaScript APIs 
 
 ## Core concepts
 
-There are two functions in the JSPI API: `WebAssembly.suspending` and `WebAssembly.promising`, together with a special object that is used to *mark* certain imports.
+There are two elements in the JSPI API: the `WebAssembly.Suspending` object and the `WebAssembly.promising` function.
 
-The `WebAssembly.suspending` function is used to mark imports to a WebAssembly module such that, when called, the WebAssembly code will suspend until the `Promise` returned by the import is resolved.[^imports]
+The `WebAssembly.Suspending` object is used to mark imports to a WebAssembly module such that, when called, the WebAssembly code will suspend until the `Promise` returned by the import is resolved.[^nosuspend]
 
-[^imports]: By *imports*, we include not only the imports provided when a WebAssembly module is instantiated but also when the WebAssembly module's function table is adjusted by JavaScript code and when a function is returned into the module as a result of calling from WebAssembly into JavaScript.
+[^nosuspend]:If the imported function did *not* return a `Promise`, then the results will be passwed directly to the WebAssembly caller -- i.e., there will be no suspension in this case.
 
 When, at some point later, the `Promise` is resolved, and the WebAssembly module is *resumed* -- by the browser's event queue task runner --  then the value of the resolved `Promise` becomes the value of the WebAssembly call to the import.
 
 Again, if the `Promise` is rejected, then instead of resuming the WebAssembly module with the value, an exception will be propagated into the suspended computation.
 
+As a result, a WebAssembly module can import a `Promise` returning JavaScript function so that the WebAssembly code can treat a call to it as a *synchronous* call.
+
 The `WebAssembly.promising` function is used to wrap an exported WebAssembly function into one that returns a `Promise` -- where the returned value from the exported function becomes the basis of resolving the `Promise`.[^wrapping]
 
-[^wrapping]: The English language can be somewhat ambiguous when it comes to concepts such as marking and wrapping. In order to avoid such ambiguities, we use the term *marked function* to denote the result of applying `WebAssembly.promising` or `WebAssembly.suspending` to a function. And we will use the term *wrapped function* to denote the argument function that is passed into those API calls -- i.e., the function that will be invoked as a result of invoking the marked function.
+[^wrapping]: The English language can be somewhat ambiguous when it comes to concepts such as marking and wrapping. In order to avoid such ambiguities, we use the term *marked function* to denote the result of applying `WebAssembly.promising` or `WebAssembly.Suspending` to a function. And we will use the term *wrapped function* to denote the argument function that is passed into those API calls -- i.e., the function that will be invoked as a result of invoking the marked function.
 
-As a result, a WebAssembly module can import a `suspending` function that wraps an async JavaScript function so that the WebAssembly module's computation suspends until the `Promise` is resolved, letting the WebAssembly code treat the call as a synchronous call.
-
-The `promising` and `suspending` functions form a pair; when a WebAssembly computation is suspended due to a call to a `suspending` import, it is the call to the `promising` export that is continued -- in the first instance. I.e., a call to a `promising` export finishes when the first call to a `suspending` import results in the WebAssembly code being suspended. The value returned by the `promising` export is also a `Promise`; that will be resolved only when the wrapped export finally returns (or throws an exception).
+The `promising` function and the `Suspending` object form a pair; when a WebAssembly computation is suspended due to a call to a `Suspending` import, it is the call to the `promising` export that is continued -- in the first instance. I.e., a call to a `promising` export finishes when the first call to a `Suspending` import results in the WebAssembly code being suspended. The value returned by the `promising` export is also a `Promise`; that will be resolved only when the wrapped export finally returns (or throws an exception).
 
 >Of course, in general, a particular call to a marked export may require multiple calls to `suspending` imports, with multiple suspensions. However, other than the first one, all subsequent suspensions are visible only to the browser event queue task runner: the host application only sees the `Promise` initially created and is reactivated only when the wrapped export finally returns (or throws).
 
@@ -88,7 +88,7 @@ In order to prepare our code for asynchrony, we wrap the `compute_delta` functio
 var init_state = () => 2.71;
 var importObj = {js: {
     init_state: init_state,
-    compute_delta:WebAssembly.suspending(compute_delta)}};
+    compute_delta: new WebAssembly.Suspending(compute_delta)}};
 ```
 
 In addition to preparing the import, we must also handle the export side. The process of wrapping exports is a little different to wrapping imports; in part because we prepare imports before instantiating modules and we wrap exports afterwards:
@@ -100,7 +100,7 @@ var promise_update = WebAssembly.promising(sampleModule.exports.update_state)
 
 At runtime, a call to the JavaScript function `promise_update` will get a `Promise`. As part of resolving that `Promise`,  the WebAssembly exported `$update_state` function is called, which results in a call to the `$compute_delta` import. That, in turn, uses `fetch` to access a remote file, and parse the result in order to give the actual floating point value back to the WebAssembly module. Since we use the wrapped `suspending_compute_delta` to implement `$compute_delta`, the import call will be suspended.
 
-When the `fetch` completes, the result is parsed -- which will likely also cause a suspension since getting the text from a `Response` also results in a `Promise`. This too will cause the application to be suspended; but when that finally is resumed the text is parsed and the result returned as a float to `$compute_delta`. 
+When the `fetch` completes, the result is parsed -- which will likely also cause a suspension since getting the text from a `Response` also results in a `Promise`. This too will cause the application to be suspended; but when that finally is resumed the text is parsed and the result returned as a float to `$compute_delta`.
 
 After updating the internal state, the original export `$update_state` returns, which causes the `Promise` originally returned by `promise_update` to be resolved. At that point, anyone awaiting that `Promise` will be given the value returned by `$update_state`.
 
@@ -124,8 +124,7 @@ partial namespace WebAssembly {
 
   Function promising(WebAssembly.Function fun);
 
-  Suspending suspending(Function fun);
-
+  [Constructor(Function fun)]
   interface Suspending {
     [Unscopable] Function wrappedFunction;
   }
@@ -157,13 +156,13 @@ Note that, if the function `wasmFunc` suspends (by invoking a `Promise` returnin
 
 ### Suspendable functions
 
-We use the `Suspendable` marker to signal to WebAssembly that a given function should cause a suspension of WebAssembly execution.
+We use the `Suspendable` constructor to signal to WebAssembly that a given import should cause a suspension of WebAssembly execution.
 
-#### `WebAssembly.suspending`(*`func`*)
+#### `new WebAssembly.Suspending(`*`func`*`)`
 
-The `WebAssembly.suspending` function takes a JavaScript `Function` as an argument and returns a `WebAssembly.Suspending` object, with the *`func`* argument embedded as the value of the hidden `wrappedFunction` property.
+The `WebAssembly.Suspending` constructor takes a JavaScript `Function` as an argument which is embedded in the `Suspending` object as the value of the hidden `wrappedFunction` property.
 
->Note the *`func`* argument is expected to be a *JavaScript function*. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of WebAssembly functions passed to `WebAssembly.suspending`.
+>Note that *`func`* is expected to be a *JavaScript function*. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of WebAssembly functions passed to `WebAssembly.Suspending`.
 
 1. If IsCallable(*func*) is `false`, throw a `TypeError` exception.
 1. Let *suspendingProto* be `WebAssembly.Suspendable.%prototype%`
@@ -202,7 +201,7 @@ The *suspending function* is a function whose behavior is determined as follows:
 1. Let `context` refer to the execution context that is current at the time of a call to the *suspending function*. Let `wfunc` be the wrapped function that was used when creating the *suspending function*.
 1. Traps if `context`'s state is not **Active**[`caller`] for some `caller`
 1. Let `result` be the result of calling `wfunc(args)` (or any trap or thrown exception) where `args` are the additional arguments passed to the call when the imported function was called from the WebAssembly module.
-1. If `result` is a `Promise`:
+1. If `$isPromise(result)`:
     1. Lets `frames` be the stack frames since `caller`
     1. Traps if there are any frames of non-WebAssembly functions in `frames`
     1. Changes `context`'s state to **Suspended**
@@ -224,5 +223,5 @@ The *suspending function* is a function whose behavior is determined as follows:
 1. **Why does `WebAssembly.promising` return a JavaScript `Function`**?
 
    This allows us to be more precise in a few special cases. In particular, if two WebAssembly modules (Modules A & B) are *chained together* (e.g., the import of module A is provided by the export of module B) then we need precision about the interaction with JSPI:
-    1. If the link is composed of a `promising`/`suspending` pair (i.e., the module A import is wrapped with a call to `WebAssembly.suspending` and the module B export is wrapped with `WebAssembly.promising`) then, if module B suspends (via one of its imports), then module A will also suspend. However, there will also be an additional `Promise`: created from the wrapped export from module B.
+    1. If the link is composed of a `Suspending`/`promising` pair (i.e., the module A import is wrapped with `new WebAssembly.Suspending` and the module B export is wrapped with `WebAssembly.promising`) then, if module B suspends (via one of its imports), then module A will also suspend. However, there will also be an additional `Promise`: created from the wrapped export from module B.
     1. If the link is direct -- without a `promising`/`suspending` pair -- then the connect is transparent from the perspective of JSPI; provided that there are no JavaScript function calls in the link.
