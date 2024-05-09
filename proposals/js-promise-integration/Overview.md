@@ -22,7 +22,7 @@ There are two elements in the JSPI API: the `WebAssembly.Suspending` object and 
 
 The `WebAssembly.Suspending` object is used to mark imports to a WebAssembly module such that, when called, the WebAssembly code will suspend until the `Promise` returned by the import is resolved.[^nosuspend]
 
-[^nosuspend]:If the imported function did *not* return a `Promise`, then the results will be passwed directly to the WebAssembly caller -- i.e., there will be no suspension in this case.
+[^nosuspend]:If the imported function did *not* return a `Promise`, then the results will be passed directly to the WebAssembly caller -- i.e., there will be no suspension in this case.
 
 When, at some point later, the `Promise` is resolved, and the WebAssembly module is *resumed* -- by the browser's event queue task runner --  then the value of the resolved `Promise` becomes the value of the WebAssembly call to the import.
 
@@ -126,12 +126,11 @@ partial namespace WebAssembly {
 
   [Constructor(Function fun)]
   interface Suspending {
-    [Unscopable] Function wrappedFunction;
   }
 }
 ```
 
-The `Suspending` object's role is primarily to annotate a function in a way that enables the `WebAssembly.instantiate` function to implement the import in a special way.  Note that `WebAssembly.Suspending` has no externally visible attributes other than those inherited from `Object`. However, it does have an internal attribute -- the `wrappedFunction` -- which is referenced in the specifics of the algorithms below.
+The `Suspending` object's role is primarily to annotate a function in a way that enables the `WebAssembly.instantiate` function to implement the import in a special way.  Note that `WebAssembly.Suspending` has no externally visible attributes other than those inherited from `Object`. However, it does have an internal slot -- `[[wrappedFunction]]` -- which is referenced in the specifics of the algorithms below.
 
 ### Exporting Promises
 
@@ -160,14 +159,14 @@ We use the `Suspendable` constructor to signal to WebAssembly that a given impor
 
 #### `new WebAssembly.Suspending(`*`func`*`)`
 
-The `WebAssembly.Suspending` constructor takes a JavaScript `Function` as an argument which is embedded in the `Suspending` object as the value of the hidden `wrappedFunction` property.
+The `WebAssembly.Suspending` constructor takes a JavaScript `Function` as an argument which is embedded in the `Suspending` object as the value of the `[[wrappedFunction]]` slot.
 
 >Note that *`func`* is expected to be a *JavaScript function*. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of WebAssembly functions passed to `WebAssembly.Suspending`.
 
 1. If IsCallable(*func*) is `false`, throw a `TypeError` exception.
 1. Let *suspendingProto* be `WebAssembly.Suspendable.%prototype%`
 1. Let *susp* be the result of `OrdinaryObjectCreate`(*`suspendingProto`*)
-1. Perform `!CreateDataPropertyOrThrow`(*susp*,`"wrappedFunction"`,*func*)
+1. Assign the `[[wrappedFunction]]` internal slot of *`susp`* to *`func`*
 1. Return *susp*
 
 The most direct way that external functions can be accessed from a WebAssembly module is via imports.[^WebAssembly.Function] Therefore, we modify the *read-the-imports* algorithm to account for imports annotated as `Suspendable`.
@@ -188,7 +187,7 @@ with:
       1. Otherwise,
           * *Create a host function* from *`v`* and *`functype`*, and let *`funcaddr`* be the result.
   1. If *`v`* is of the form *`Suspendable`*
-      1. Let *`func`* be  `$Get$`(*`v`*, *`wrappedFunction`*).
+      1. Let *`func`* be *`v`*'s *`[[wrappedFunction]]`* slot.
       1. Assert `$IsCallable$`(*`func`*).
       1. Create a *suspending function* from *`func`* and *`functype`*, and let *`funcaddr`* be the result.
   1. If `$IsCallable$`(*`v`*) is `false` and *`v`* is not of the form *`Suspendable`* throw a `LinkError` exception.
