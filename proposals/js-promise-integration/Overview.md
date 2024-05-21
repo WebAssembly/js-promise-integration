@@ -190,7 +190,7 @@ with:
       1. Let *`func`* be *`v`*'s *`[[wrappedFunction]]`* slot.
       1. Assert `$IsCallable$`(*`func`*).
       1. Create a *suspending function* from *`func`* and *`functype`*, and let *`funcaddr`* be the result.
-  1. If `$IsCallable$`(*`v`*) is `false` and *`v`* does not have a *`Suspendable`* internal slot then throw a `LinkError` exception.
+  1. If `$IsCallable$`(*`v`*) is `false` and *`v`* does not have a *`[[wrappedFunction]]`* internal slot then throw a `LinkError` exception.
   1. Let `*index*` be the number of external functions in *`imports`*. This value `*index*` is known as the *index of the host function* *`funcaddr`*.
   1. Let *`externfunc`* be the external value *`funcaddr`*
   1. Append *`externfunc`* to *`imports`*.
