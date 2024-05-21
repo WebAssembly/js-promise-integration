@@ -182,8 +182,8 @@ with:
 3.4. If *externtype* is of the form `func` *functype*
 
   1. If `$IsCallable$`(*`v`*) is `true`
-      1. If *`v`* has a `FunctionAddress` internal slot, and therefore is an *Exported Function*,
-          * Let *`funcaddr`* be the value of *`v`*'s `FunctionAddress` internal slot.
+      1. If *`v`* has a *`[[FunctionAddress]]`* internal slot, and therefore is an *Exported Function*,
+          * Let *`funcaddr`* be the value of *`v`*'s *`[[FunctionAddress]]`* internal slot.
       1. Otherwise,
           * *Create a host function* from *`v`* and *`functype`*, and let *`funcaddr`* be the result.
   1. If *`v`* has a *`[[wrappedFunction]]`* internal slot:
