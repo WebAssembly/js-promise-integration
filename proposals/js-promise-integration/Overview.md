@@ -36,13 +36,13 @@ The `WebAssembly.promising` function is used to wrap an exported WebAssembly fun
 
 The `promising` function and the `Suspending` object form a pair; when a WebAssembly computation is suspended due to a call to a `Suspending` import, it is the call to the `promising` export that is continued -- in the first instance. I.e., a call to a `promising` export finishes when the first call to a `Suspending` import results in the WebAssembly code being suspended. The value returned by the `promising` export is also a `Promise`; that will be resolved only when the wrapped export finally returns (or throws an exception).
 
->Of course, in general, a particular call to a marked export may require multiple calls to `suspending` imports, with multiple suspensions. However, other than the first one, all subsequent suspensions are visible only to the browser event queue task runner: the host application only sees the `Promise` initially created and is reactivated only when the wrapped export finally returns (or throws).
+>Of course, in general, a particular call to a marked export may require multiple calls to `Suspending` imports, with multiple suspensions. However, other than the first one, all subsequent suspensions are visible only to the browser event queue task runner: the host application only sees the `Promise` initially created and is reactivated only when the wrapped export finally returns (or throws).
 
 Since they form a pair, it not expected for an unmatched module to be meaningful: if a marked import suspends but the corresponding export (whose execution led to the call to the suspending import) is not marked then the engine is expected to *trap*. If an export function is marked, but its execution never results in a call to a marked import, then the marked function returns a fully resolved `Promise`.
 
 ### Restriction
 
-Only WebAssembly computations may be suspended using JSPI; this is enforced by requiring that only WebAssembly frames are active between the call to a `promising` function and any call to a `suspending` function.
+Only WebAssembly computations may be suspended using JSPI; this is enforced by requiring that only WebAssembly frames are active between the call to a `promising` function and any call to a `Suspending` wrapped import.
 
 ## Examples
 
@@ -82,7 +82,7 @@ var compute_delta = () =>
     .then(txt => parseFloat(txt));
 ```
 
-In order to prepare our code for asynchrony, we wrap the `compute_delta` function using `WebAssembly.suspending` function. The complete import object looks like:
+In order to prepare our code for asynchrony, we wrap the `compute_delta` function using the `WebAssembly.Suspending` constructor. The complete import object looks like:
 
 ```js
 var init_state = () => 2.71;
