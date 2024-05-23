@@ -18,7 +18,7 @@ This proposal allows a WebAssembly application to interact with JavaScript APIs 
 
 ## Core concepts
 
-There are two elements in the JSPI API: the `WebAssembly.Suspending` object and the `WebAssembly.promising` function.
+There are two elements in the JSPI API: the `WebAssembly.Suspending` constructor and the `WebAssembly.promising` function.
 
 The `WebAssembly.Suspending` object is used to mark imports to a WebAssembly module such that, when called, the WebAssembly code will suspend until the `Promise` returned by the import is resolved.[^nosuspend]
 
@@ -94,13 +94,13 @@ var importObj = {js: {
 In addition to preparing the import, we must also handle the export side. The process of wrapping exports is a little different to wrapping imports; in part because we prepare imports before instantiating modules and we wrap exports afterwards:
 
 ```js
-var sampleModule = WebAssembly.instantiate(demoBuffer,importObj);
+var sampleModule = new WebAssembly.Instance(demoBuffer,importObj);
 var promise_update = WebAssembly.promising(sampleModule.exports.update_state)
 ```
 
-At runtime, a call to the JavaScript function `promise_update` will get a `Promise`. As part of resolving that `Promise`,  the WebAssembly exported `$update_state` function is called, which results in a call to the `$compute_delta` import. That, in turn, uses `fetch` to access a remote file, and parse the result in order to give the actual floating point value back to the WebAssembly module. Since we use the wrapped `suspending_compute_delta` to implement `$compute_delta`, the import call will be suspended.
+At runtime, a call to the JavaScript function `promise_update` will get a `Promise`. As part of resolving that `Promise`,  the WebAssembly exported `$update_state` function is called, which results in a call to the `$compute_delta` import. That, in turn, uses `fetch` to access a remote file, and parse the result in order to give the actual floating point value back to the WebAssembly module. Since we use a `WebAssembly.Suspending` wrapped function to implement `$compute_delta`, the import call will be suspended.
 
-When the `fetch` completes, the result is parsed -- which will likely also cause a suspension since getting the text from a `Response` also results in a `Promise`. This too will cause the application to be suspended; but when that finally is resumed the text is parsed and the result returned as a float to `$compute_delta`.
+When the `fetch` completes, the result is parsed -- which will also cause a suspension since getting the text from a `Response` also results in a `Promise`. This too will cause the application to be suspended; but when that finally is resumed the text is parsed and the result returned as a float to `$compute_delta`.
 
 After updating the internal state, the original export `$update_state` returns, which causes the `Promise` originally returned by `promise_update` to be resolved. At that point, anyone awaiting that `Promise` will be given the value returned by `$update_state`.
 
@@ -122,10 +122,10 @@ However, desktop applications, written for operating systems such as Mac OS and 
 [Exposed=(Window,Worker,Worklet)]
 partial namespace WebAssembly {
 
-  Function promising(WebAssembly.Function fun);
+  Function promising(Function wasmFun);
 
-  [Constructor(Function fun)]
   interface Suspending {
+    constructor(Function jsFun);
   }
 }
 ```
@@ -141,7 +141,8 @@ The `WebAssembly.promising` function takes a WebAssembly function, as exported b
 The `WebAssembly.promising` function takes a WebAssembly function -- i.e., not a JavaScript function -- and returns a JavaScript function that evaluates *`wasmFun`* and returns a `Promise` with the result:
 
 0. Let `wasmFunc` be the exported WebAssembly function that is passed to the `WebAssembly.promising` function,
-1. create a function that will, when called with arguments `args`:
+1. if *`wasmFun`* does not contain a *`[[FunctionAddress]]`* hidden slot throw a *`TypeError`* exception.
+2. create a function that will, when called with arguments `args`:
     1. Let `promise` be a new `Promise` constructed as though by the `Promise`(`fn`) constructor, where `fn` is a function of two arguments `accept` and `reject` that:
         1. lets `context` be a new [execution context](https://tc39.es/ecma262/#sec-execution-contexts), and sets the *running execution context* to `context` (pushing the existing *running execution context* onto the *execution context stack*).
         2. lets `result` be the result of calling `wasmFunc(args)` (or any trap or thrown exception)
@@ -157,21 +158,21 @@ Note that, if the function `wasmFunc` suspends (by invoking a `Promise` returnin
 
 We use the `Suspendable` constructor to signal to WebAssembly that a given import should cause a suspension of WebAssembly execution.
 
-#### `new WebAssembly.Suspending(`*`func`*`)`
+#### `new WebAssembly.Suspending(`*`jsFun`*`)`
 
-The `WebAssembly.Suspending` constructor takes a JavaScript `Function` as an argument which is embedded in the `Suspending` object as the value of the `[[wrappedFunction]]` slot.
+The `WebAssembly.Suspending` constructor takes a JavaScript `Function` as an argument which is embedded in the `Suspending` object as the value of the `[[wrappedFunction]]` hidden slot.
 
->Note that *`func`* is expected to be a *JavaScript function*. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of WebAssembly functions passed to `WebAssembly.Suspending`.
+>Note that *`jsFun`* is expected to be a *JavaScript function*. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of WebAssembly functions passed to `WebAssembly.Suspending`.
 
-1. If IsCallable(*func*) is `false`, throw a `TypeError` exception.
+1. If IsCallable(*jsFun*) is `false`, throw a `TypeError` exception.
 1. Let *suspendingProto* be `WebAssembly.Suspendable.%prototype%`
 1. Let *susp* be the result of `OrdinaryObjectCreate`(*`suspendingProto`*)
-1. Assign the `[[wrappedFunction]]` internal slot of *`susp`* to *`func`*
+1. Assign the `[[wrappedFunction]]` internal slot of *`susp`* to *`jsFun`*
 1. Return *susp*
 
 The most direct way that external functions can be accessed from a WebAssembly module is via imports.[^WebAssembly.Function] Therefore, we modify the *read-the-imports* algorithm to account for imports annotated as `Suspendable`.
 
-[^WebAssembly.Function]: The other way is by using a `WebAssembly.Function` constructor, as proposed in the js-types proposal. However, the semantics of `WebAssembly.Function` also revolve around modules and importing.
+[^WebAssembly.Function]: The other way is by using a `WebAssembly.Function` constructor, as proposed in the [js-types proposal](https://github.com/WebAssembly/js-types). However, the semantics of `WebAssembly.Function` also revolve around modules and importing.
 
 We replace the section dealing with functions:
 
@@ -200,11 +201,11 @@ The *suspending function* is a function whose behavior is determined as follows:
 1. Let `context` refer to the execution context that is current at the time of a call to the *suspending function*. Let `wfunc` be the wrapped function that was used when creating the *suspending function*.
 1. Traps if `context`'s state is not **Active**[`caller`] for some `caller`
 1. Let `result` be the result of calling `wfunc(args)` (or any trap or thrown exception) where `args` are the additional arguments passed to the call when the imported function was called from the WebAssembly module.
-1. If `$isPromise(result)`:
+1. If `$IsPromise(result)`:
     1. Lets `frames` be the stack frames since `caller`
     1. Traps if there are any frames of non-WebAssembly functions in `frames`
     1. Changes `context`'s state to **Suspended**
-    1. Returns the result of `promise.then(onFulfilled, onRejected)` with functions `onFulfilled` and `onRejected` that do the following:
+    1. Returns the result of `result.then(onFulfilled, onRejected)` with functions `onFulfilled` and `onRejected` that do the following:
         1. Asserts that `context`'s state is **Suspended** (should be guaranteed)
         2. Changes `context`'s state to **Active**[`caller'`], where `caller'` is the caller of `onFulfilled`/`onRejected`
         3. * In the case of `onFulfilled`, converts the given value to `externref` and returns that to `frames`
@@ -223,4 +224,12 @@ The *suspending function* is a function whose behavior is determined as follows:
 
    This allows us to be more precise in a few special cases. In particular, if two WebAssembly modules (Modules A & B) are *chained together* (e.g., the import of module A is provided by the export of module B) then we need precision about the interaction with JSPI:
     1. If the link is composed of a `Suspending`/`promising` pair (i.e., the module A import is wrapped with `new WebAssembly.Suspending` and the module B export is wrapped with `WebAssembly.promising`) then, if module B suspends (via one of its imports), then module A will also suspend. However, there will also be an additional `Promise`: created from the wrapped export from module B.
-    1. If the link is direct -- without a `promising`/`suspending` pair -- then the connect is transparent from the perspective of JSPI; provided that there are no JavaScript function calls in the link.
+    1. If the link is direct -- without a `Suspending`/`promising` pair -- then the connect is transparent from the perspective of JSPI; provided that there are no JavaScript function calls in the link.
+
+1. **What are the changes to the API?**
+
+   The primary change to the JSPI API are the removal of the `Suspender` object and the detachment from the [*Type Reflection Proposal*](https://github.com/WebAssembly/js-types). The former change means that:
+
+   1. Suspending imports are always assumed to be of JavaScript functions (even if an import is actually bound to a WebAssembly function),
+   1. when a wrapped import returns a `Promise`, the computation between the innermost wrapped `promising` export and the import is suspended. Previously, this was identified by the explicit `Suspender` object; and
+   1. the JSPI API no longer uses a modification of the `WebAssembly.Function` constructor to convey intentions. As a result, it is no longer necessary for JavaScript code that is responsible for managing the instantiation of a WebAssembly module to be aware of the types of WebAssembly functions in imports and exports.
