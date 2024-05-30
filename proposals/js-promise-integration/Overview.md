@@ -119,15 +119,15 @@ However, desktop applications, written for operating systems such as Mac OS and 
 ### WebIDL Interface
 
 ```idl
-[Exposed=(Window,Worker,Worklet)]
+[Exposed=*]
 partial namespace WebAssembly {
+    Function promising(Function wasmFun);
+};
 
-  Function promising(Function wasmFun);
-
-  interface Suspending {
+[LegacyNamespace=WebAssembly, Exposed=*]
+interface Suspending {
     constructor(Function jsFun);
-  }
-}
+};
 ```
 
 The `Suspending` object's role is primarily to annotate a function in a way that enables the `WebAssembly.instantiate` function to implement the import in a special way.  Note that `WebAssembly.Suspending` has no externally visible attributes other than those inherited from `Object`. However, it does have an internal slot -- `[[wrappedFunction]]` -- which is referenced in the specifics of the algorithms below.
@@ -150,7 +150,7 @@ The `WebAssembly.promising` function takes a WebAssembly function -- i.e., not a
         4. If `result` is not an exception or a trap, calls the `accept` function argument with the appropriate value.
         5. If `result` is an exception, or if it is a trap, calls the `reject` function with the raised exception.
     2. Returns `promise` to `caller`
-2. Return created function as value of `WebAssembly.promising`
+3. Return created function as value of `WebAssembly.promising`
 
 Note that, if the function `wasmFunc` suspends (by invoking a `Promise` returning import), then the `promise` will be returned to the `caller` before `wasmFunc` returns. When `wasmFunc` completes eventually, then `promise` will be resolved -- and one of `accept` or `reject` will be invoked by the browser's microtask runner.
 
