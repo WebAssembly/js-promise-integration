@@ -2,7 +2,7 @@
 // META: script=/wasm/jsapi/wasm-module-builder.js
 
 function ToPromising(wasm_export) {
-  let sig = WebAssembly.Function.type(wasm_export);
+  let sig = wasm_export.type();
   assert_true(sig.parameters.length > 0);
   assert_equals('externref', sig.parameters[0]);
   let wrapper_sig = {
@@ -55,16 +55,16 @@ test(() => {
       {promising: 'first'}));
 
   // Check the wrapper signatures.
-  let export_sig = WebAssembly.Function.type(export_wrapper);
+  let export_sig = export_wrapper.type();
   assert_array_equals(['i32'], export_sig.parameters);
   assert_array_equals(['externref'], export_sig.results);
 
-  let import_sig = WebAssembly.Function.type(import_wrapper);
+  let import_sig = import_wrapper.type();
   assert_array_equals(['externref', 'i32'], import_sig.parameters);
   assert_array_equals([], import_sig.results);
 
   let void_export_wrapper = ToPromising(instance.exports.void_export);
-  let void_export_sig = WebAssembly.Function.type(void_export_wrapper);
+  let void_export_sig = void_export_wrapper.type();
   assert_array_equals([], void_export_sig.parameters);
   assert_array_equals(['externref'], void_export_sig.results);
 }, "Test import and export type checking");
@@ -134,11 +134,14 @@ promise_test(async () => {
 
 test(() => {
   let builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI32, true).exportAs('g');
   import_index = builder.addImport('m', 'import', kSig_i_r);
   builder.addFunction("test", kSig_i_r)
       .addBody([
           kExprLocalGet, 0,
-          kExprCallFunction, import_index, // suspend
+          kExprCallFunction, import_index,
+          kExprGlobalSet, 0,
+          kExprGlobalGet, 0,
       ]).exportFunc();
   function js_import() {
     return 42
@@ -149,19 +152,21 @@ test(() => {
       {suspending: 'first'});
   let instance = builder.instantiate({m: {import: wasm_js_import}});
   let wrapped_export = ToPromising(instance.exports.test);
-  assert_equals(42, wrapped_export());
+  wrapped_export();
+  // The global was updated synchronously.
+  assert_equals(42, instance.exports.g.value);
 }, "Do not suspend if the import's return value is not a Promise");
 
 test(t => {
   let tag = new WebAssembly.Tag({parameters: []});
   let builder = new WasmModuleBuilder();
   import_index = builder.addImport('m', 'import', kSig_i_r);
-  tag_index = builder.addImportedException('m', 'tag', kSig_v_v);
+  js_throw_index = builder.addImport('m', 'js_throw', kSig_v_v);
   builder.addFunction("test", kSig_i_r)
       .addBody([
           kExprLocalGet, 0,
           kExprCallFunction, import_index,
-          kExprThrow, tag_index
+          kExprCallFunction, js_throw_index,
       ]).exportFunc();
   function js_import() {
     return Promise.resolve();
@@ -170,29 +175,30 @@ test(t => {
       {parameters: ['externref'], results: ['i32']},
       js_import,
       {suspending: 'first'});
+  function js_throw() {
+    throw new Error();
+  }
 
-  let instance = builder.instantiate({m: {import: wasm_js_import, tag: tag}});
+  let instance = builder.instantiate({m: {import: wasm_js_import, js_throw}});
   let wrapped_export = ToPromising(instance.exports.test);
   let export_promise = wrapped_export();
   assert_true(export_promise instanceof Promise);
-  promise_rejects(t, new WebAssembly.Exception(tag, []), export_promise);
+  promise_rejects(t, new Error(), export_promise);
 }, "Throw after the first suspension");
 
-promise_test(async () => {
+// TODO: Use wasm exception handling to check that the exception can be caught in wasm.
+
+test(t => {
   let tag = new WebAssembly.Tag({parameters: ['i32']});
   let builder = new WasmModuleBuilder();
   import_index = builder.addImport('m', 'import', kSig_i_r);
-  tag_index = builder.addImportedException('m', 'tag', kSig_v_i);
   builder.addFunction("test", kSig_i_r)
       .addBody([
-          kExprTry, kWasmI32,
           kExprLocalGet, 0,
           kExprCallFunction, import_index,
-          kExprCatch, tag_index,
-          kExprEnd,
       ]).exportFunc();
   function js_import() {
-    return Promise.reject(new WebAssembly.Exception(tag, [42]));
+    return Promise.reject(new Error());
   };
   let wasm_js_import = new WebAssembly.Function(
       {parameters: ['externref'], results: ['i32']},
@@ -203,7 +209,7 @@ promise_test(async () => {
   let wrapped_export = ToPromising(instance.exports.test);
   let export_promise = wrapped_export();
   assert_true(export_promise instanceof Promise);
-  assert_equals(42, await export_promise);
+  promise_rejects(t, new Error(), export_promise);
 }, "Rejecting promise");
 
 async function TestNestedSuspenders(suspend) {
@@ -214,8 +220,8 @@ async function TestNestedSuspenders(suspend) {
   // the outer wasm function, which returns a Promise. The inner Promise
   // resolves first, which resumes the inner continuation. Then the outer
   // promise resolves which resumes the outer continuation.
-  // If 'suspend' is false, the inner JS function returns a regular value and
-  // no computation is suspended.
+  // If 'suspend' is false, the inner and outer JS functions return a regular
+  // value and no computation is suspended.
   let builder = new WasmModuleBuilder();
   inner_index = builder.addImport('m', 'inner', kSig_i_r);
   outer_index = builder.addImport('m', 'outer', kSig_i_r);
@@ -238,19 +244,15 @@ async function TestNestedSuspenders(suspend) {
   let export_inner;
   let outer = new WebAssembly.Function(
       {parameters: ['externref'], results: ['i32']},
-      () => export_inner(),
+      () => suspend ? export_inner() : 42,
       {suspending: 'first'});
 
   let instance = builder.instantiate({m: {inner, outer}});
   export_inner = ToPromising(instance.exports.inner);
   let export_outer = ToPromising(instance.exports.outer);
   let result = export_outer();
-  if (suspend) {
-    assert_true(result instanceof Promise);
-    assert_equals(42, await result);
-  } else {
-    assert_equals(43, result);
-  }
+  assert_true(result instanceof Promise);
+  assert_equals(42, await result);
 }
 
 test(() => {
@@ -283,3 +285,103 @@ test(() => {
     assert_throws(WebAssembly.RuntimeError, () => instance.exports.test(s));
   }
 }, "Call import with an invalid suspender");
+
+test(t => {
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, 0
+          ]).exportFunc();
+  let instance = builder.instantiate();
+  let wrapper = ToPromising(instance.exports.test);
+  promise_rejects(t, new RangeError(), wrapper());
+}, "Stack overflow");
+
+test (() => {
+  let builder = new WasmModuleBuilder();
+  let import_index = builder.addImport('m', 'import', kSig_i_r);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  builder.addFunction("return_suspender", kSig_r_r)
+      .addBody([
+          kExprLocalGet, 0
+      ]).exportFunc();
+  let js_import = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      () => Promise.resolve(42),
+      {suspending: 'first'});
+  let instance = builder.instantiate({m: {import: js_import}});
+  let suspender = ToPromising(instance.exports.return_suspender)();
+  for (s of [suspender, null, undefined, {}]) {
+    assert_throws(WebAssembly.RuntimeError, () => instance.exports.test(s));
+  }
+}, "Pass an invalid suspender");
+
+// TODO: Test suspension with funcref.
+
+test(t => {
+  // The call stack of this test looks like:
+  // export1 -> import1 -> export2 -> import2
+  // Where export1 is "promising" and import2 is "suspending". Returning a
+  // promise from import2 should trap because of the JS import in the middle.
+  let builder = new WasmModuleBuilder();
+  let import1_index = builder.addImport("m", "import1", kSig_i_v);
+  let import2_index = builder.addImport("m", "import2", kSig_i_r);
+  builder.addGlobal(kWasmAnyRef, true);
+  builder.addFunction("export1", kSig_i_r)
+      .addBody([
+          // export1 -> import1 (unwrapped)
+          kExprLocalGet, 0,
+          kExprGlobalSet, 0,
+          kExprCallFunction, import1_index,
+      ]).exportFunc();
+  builder.addFunction("export2", kSig_i_v)
+      .addBody([
+          // export2 -> import2 (suspending)
+          kExprGlobalGet, 0,
+          kExprCallFunction, import2_index,
+      ]).exportFunc();
+  let instance;
+  function import1() {
+    // import1 -> export2 (unwrapped)
+    instance.exports.export2();
+  }
+  function import2() {
+    return Promise.resolve(0);
+  }
+  import2 = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      import2,
+      {suspending: 'first'});
+  instance = builder.instantiate(
+      {'m':
+        {'import1': import1,
+         'import2': import2
+        }});
+  // export1 (promising)
+  let wrapper = new WebAssembly.Function(
+      {parameters: [], results: ['externref']},
+      instance.exports.export1,
+      {promising: 'first'});
+  promise_rejects(t, new WebAssembly.RuntimeError(), wrapper());
+}, "Test that trying to suspend JS frames traps");
+
+test(() => {
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_i_r);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  let js_import = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      () => 42,
+      {suspending: 'first'});
+  let instance = builder.instantiate({m: {import: js_import}});
+  assert_equals(42, instance.exports.test(null));
+}, "Pass an invalid suspender to the import and return a non-promise");
