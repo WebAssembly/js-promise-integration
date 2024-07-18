@@ -1195,7 +1195,7 @@ interface Suspending {
     1. Returns |promise|
 </div>
 
-Note: The extra |$Call$| in the above algorithm ensures that the call into the promising function is not in a tail-recursive position and it also guarantees that there is an [=ExecutionContext=] on the stack immediately 'below' the currently running [=ExecutionContext=] whenever the computation has to suspend due to a call to a [=Suspending=] import.
+Note: The extra |$Call$| in the above algorithm ensures that the creation of the Promise is separated from the fullfilling of that Promise. In effect, it guarantees that the [=ExecutionContext=] on the stack that is present whenever the computation has to suspend due to a call to a [=Suspending=] import is separated from the creation of the Promise.
 
 
 <div algorithm>
