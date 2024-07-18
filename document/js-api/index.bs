@@ -1262,7 +1262,7 @@ When the [=namespace object=] for the {{WebAssembly}} namespace is [=create a na
 1.  Let |namespaceObject| be the [=namespace object=].
 1.  [=list/iterate|For each=] |error| of « "CompileError", "LinkError", "RuntimeError" »,
     1.  Let |constructor| be a new object, implementing the [=NativeError Object Structure=], with <var ignore>NativeError</var> set to |error|.
-    1.  [=!=] [$CreateDataProperty$](|namespaceObject|, |error|,  |constructor|).
+    1.  [=!=] [$CreateMethodProperty$](|namespaceObject|, |error|,  |constructor|).
 
 </div>
 
