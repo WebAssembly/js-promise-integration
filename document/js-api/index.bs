@@ -1195,8 +1195,7 @@ interface Suspending {
     1. Returns |promise|
 </div>
 
-Note: The extra |$Call$| in the above algorithm ensures that the creation of the Promise is separated from the fullfilling of that Promise. In effect, it guarantees that the [=ExecutionContext=] on the stack that is present whenever the computation has to suspend due to a call to a [=Suspending=] import is separated from the creation of the Promise.
-
+Note: The extra |$Call$| in the above algorithm ensures that the creation of the Promise is separated from the fullfilling of that Promise. In effect, this allows suspension of the fullfillment to occur whilst allowing the creation of the Promise itself to continue.
 
 <div algorithm>
     The <dfn constructor for="Suspending">Suspending(|jsFun|)</dfn> constructor, when invoked, performs the following steps:
