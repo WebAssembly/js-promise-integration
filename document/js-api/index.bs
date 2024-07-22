@@ -339,7 +339,7 @@ A {{Module}} object represents a single WebAssembly module. Each {{Module}} obje
                     1. Let |func| be the value of |v|'s \[[wrappedFunction]] internal slot.
                     1. Assert: [$IsCallable$](|func|) is true
                     1. [=Create a suspending function|create a suspending function=] from |func| and |functype|, and let |funcaddr| be the result.
-            1. If [$IsCallable$](|v|) is false or |v| does not have a \[[wrappedFunction]] internal slot throw a {{LinkError}} exception.
+            1. Otherwise, throw a {{LinkError}} exception.
             1. Let |index| be the number of external functions in |imports|. This value |index| is known as the <dfn>index of the host function</dfn> |funcaddr|.
             1. Let |externfunc| be the [=external value=] [=external value|func=] |funcaddr|.
             1. [=list/Append=] |externfunc| to |imports|.
