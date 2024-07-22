@@ -42,6 +42,7 @@ urlPrefix: https://tc39.github.io/ecma262/; spec: ECMASCRIPT
         text: EvaluateCall; url: sec-evaluatecall
         text: ExecutionContext; url: sec-execution-contexts
         text: IsPromise; url: sec-ispromise
+        text: PerformPromiseThen; url: sec-performpromisethen
         text: Execution Context Stack; url: execution-context-stack
     type: dfn
         url: sec-returnifabrupt-shorthands
@@ -1022,7 +1023,7 @@ Note: Exported Functions do not have a \[[Construct]] method and thus it is not 
 
 
 <div algorithm>
-  To <dfn>coerce WebAssembly arguments</dfn> from a list of |parameterTypes| and a [=list=] of JavaScript arguments |arguments|, perform the following steps
+  To <dfn>coerce WebAssembly arguments</dfn> from a [=list=] of |parameterTypes| and a [=list=] of JavaScript arguments |arguments|, perform the following steps
     1. If |parameterTypes| contain [=v128=], throw a {{TypeError}}.
     1. Let |jsArguments| be « ».
     1. [=list/iterate|For each=] |arg| of |arguments|,
@@ -1228,7 +1229,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
             1. Let |promise| be |ret|.\[[Value]][0].
             1. Suspend |async_context|, removing it from the ambient [=Execution Context Stack=].
             1. If |async_context| is not performing the steps in [=run a Promising function=] then trigger a WebAssembly trap.
-            1. Let |fulled| be an [=AbstractClosure=] with parameters (|v|) that captures |functype|, |async_context| and performs the following steps when called:
+            1. Let |resolved| be an [=AbstractClosure=] with parameters (|v|) that captures |functype|, |async_context| and performs the following steps when called:
                 1. Let |resultsSize| be |results|'s [=list/size=].
                 1. If |resultsSize| is not 1, throw a {{TypeError}}.
                 1. Let |resultType| be [|results|].[0].
@@ -1236,14 +1237,14 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
                 1. Push |async_context| on to the [=ExecutionContext=] stack.
                 1. Resume the suspended evaluation of asyncContext using |returnValue| as the result of the operation that suspended it.
                 1. Return undefined.
-            1. Let |onFulfilled| be [=CreateBuiltinFunction=](|fulled|,1,"",[])
+            1. Let |onResolved| be [=CreateBuiltinFunction=](|resolved|,1,"",[])
             1. Let |rejected| be an [=AbstractClosure=] with parameters (|e|) that captures |async_context| and performs the following steps when called:
                 1. Converts |e| to the WebAssembly exception |we|.
                 1. Push |async_context| on to the [=ExecutionContext=] stack.
                 1. Resume the suspended evaluation of asyncContext using throw |we| as the result of the operation that suspended it.
                 1. Return undefined.
             1. Let |onRejected| be [=CreateBuiltinFunction=](|rejected|,1,"",[])
-            1. Perform PerformPromiseThen(|promise|, |onFulfilled|, |onRejected|). 
+            1. Perform [$PerformPromiseThen$](|promise|, |onResolved|, |onRejected|). 
             1. Return undefined
         1. Return the result of performing [=coerce a JavaScript return=] on |results| and |ret|.
     1. Let |store| be the [=surrounding agent=]'s [=associated store=].
