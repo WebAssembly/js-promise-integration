@@ -38,7 +38,7 @@ The `promising` function and the `Suspending` object form a pair; when a WebAsse
 
 >Of course, in general, a particular call to a marked export may require multiple calls to `Suspending` imports, with multiple suspensions. However, other than the first one, all subsequent suspensions are visible only to the browser event queue task runner: the host application only sees the `Promise` initially created and is reactivated only when the wrapped export finally returns (or throws).
 
-Since they form a pair, it not expected for an unmatched module to be meaningful: if a marked import suspends but the corresponding export (whose execution led to the call to the suspending import) is not marked then the engine is expected to *trap*. If an export function is marked, but its execution never results in a call to a marked import, then the marked function returns a fully resolved `Promise`.
+Since they form a pair, it is not expected for an unmatched module to be meaningful: if a marked import suspends but the corresponding export (whose execution led to the call to the suspending import) is not marked then the engine is expected to *trap*. If an export function is marked, but its execution never results in a call to a marked import, then the marked function returns a fully resolved `Promise`.
 
 ### Restriction
 
