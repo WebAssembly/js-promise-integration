@@ -1023,6 +1023,7 @@ class WasmModuleBuilder {
                 section.emit_u32v(global.function_index);
               } else {
                 section.emit_u8(kExprRefNull);
+                section.emit_u8(kWasmAnyRef);
               }
               break;
             }
