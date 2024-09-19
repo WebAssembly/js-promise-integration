@@ -36,6 +36,15 @@ urlPrefix: https://tc39.github.io/ecma262/; spec: ECMASCRIPT
         text: NativeError; url: sec-nativeerror-constructors
         text: TypeError; url: sec-native-error-types-used-in-this-standard-typeerror
         text: RangeError; url: sec-native-error-types-used-in-this-standard-rangeerror
+    type: dfn;
+        text: AbstractClosure; url: sec-abstract-closure
+        text: CreateBuiltinFunction; url: sec-createbuiltinfunction
+        text: PromiseCapabilityRecord; url: sec-promisecapability-records
+        text: EvaluateCall; url: sec-evaluatecall
+        text: ExecutionContext; url: sec-execution-contexts
+        text: IsPromise; url: sec-ispromise
+        text: PerformPromiseThen; url: sec-performpromisethen
+        text: Execution Context Stack; url: execution-context-stack
     type: dfn
         url: sec-returnifabrupt-shorthands
             text: !
@@ -101,6 +110,8 @@ urlPrefix: https://webassembly.github.io/spec/core/; spec: WebAssembly; type: df
     text: func_alloc; url: appendix/embedding.html#embed-func-alloc
     text: func_type; url: appendix/embedding.html#embed-func-type
     text: func_invoke; url: appendix/embedding.html#embed-func-invoke
+    text: evaluation_suspend; url: appendix/embedding.html#embed-evaluation-suspend
+    text: evaluation_resume; url: appendix/embedding.html#embed-evaluation-resume
     text: table_alloc; url: appendix/embedding.html#embed-table-alloc
     text: table_type; url: appendix/embedding.html#embed-table-type
     text: table_read; url: appendix/embedding.html#embed-table-read
@@ -385,13 +396,18 @@ A {{Module}} object represents a single WebAssembly module. Each {{Module}} obje
         1. Let |o| be [=?=] [$Get$](|importObject|, |moduleName|).
         1. If [=Type=](|o|) is not Object, throw a {{TypeError}} exception.
         1. Let |v| be [=?=] [$Get$](|o|, |componentName|).
-        1. If |externtype| is of the form [=external-type/func=] |functype|,
-            1. If [$IsCallable$](|v|) is false, throw a {{LinkError}} exception.
-            1. If |v| has a \[[FunctionAddress]] internal slot, and therefore is an [=Exported Function=],
-                1. Let |funcaddr| be the value of |v|'s \[[FunctionAddress]] internal slot.
-            1. Otherwise,
-                1. [=Create a host function=] from |v| and |functype|, and let |funcaddr| be the result.
-                1. Let |index| be the number of external functions in |imports|. This value |index| is known as the <dfn>index of the host function</dfn> |funcaddr|.
+        1. If |externtype| is of the form [=func=] |functype|,
+            1. If [$IsCallable$](|v|) is true
+                1. If |v| has a \[[FunctionAddress]] internal slot, and therefore is an [=Exported Function=],
+                    1. Let |funcaddr| be the value of |v|'s \[[FunctionAddress]] internal slot.
+                1. Otherwise,
+                    1. [=Create a host function=] from |v| and |functype|, and let |funcaddr| be the result.
+            1. Otherwise, if |v| has a \[[wrappedFunction]] insternal slot
+                    1. Let |func| be the value of |v|'s \[[wrappedFunction]] internal slot.
+                    1. Assert: [$IsCallable$](|func|) is true
+                    1. [=Create a suspending function|create a suspending function=] from |func| and |functype|, and let |funcaddr| be the result.
+            1. Otherwise, throw a {{LinkError}} exception.
+            1. Let |index| be the number of external functions in |imports|. This value |index| is known as the <dfn>index of the host function</dfn> |funcaddr|.
             1. Let |externfunc| be the [=external value=] [=external value|func=] |funcaddr|.
             1. [=list/Append=] |externfunc| to |imports|.
         1. If |externtype| is of the form [=external-type/global=] <var ignore>mut</var> |valtype|,
@@ -408,6 +424,10 @@ A {{Module}} object represents a single WebAssembly module. Each {{Module}} obje
                 1. Let |store| be the [=surrounding agent=]'s [=associated store=].
                 1. Let (|store|, |globaladdr|) be [=global_alloc=](|store|, [=const=] |valtype|, |value|).
                 1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
+            1. Otherwise, if |v| [=implements=] {{Global}},
+                1. Let |globaladdr| be |v|.\[[Global]].
+            1. Otherwise,
+                1. Throw a {{LinkError}} exception.
             1. Let |externglobal| be [=external value|global=] |globaladdr|.
             1. [=list/Append=] |externglobal| to |imports|.
         1. If |externtype| is of the form [=external-type/mem=] <var ignore>memtype</var>,
@@ -1126,12 +1146,9 @@ This slot holds a [=function address=] relative to the [=surrounding agent=]'s [
 </div>
 
 <div algorithm>
-  To <dfn>call an Exported Function</dfn> with [=function address=] |funcaddr| and a [=list=] of JavaScript arguments |argValues|, perform the following steps:
-
-    1. Let |store| be the [=surrounding agent=]'s [=associated store=].
-    1. Let |functype| be [=func_type=](|store|, |funcaddr|).
+  To <dfn>coerce JavaScript arguments</dfn> from a |functype| and a [=list=] of JavaScript arguments |argValues|, perform the following steps
     1. Let [|parameters|] → [|results|] be |functype|.
-    1. If |parameters| or |results| contain [=v128=] or [=exnref=], throw a {{TypeError}}.
+    1. If |parameters| or |results| contain [=v128=], throw a {{TypeError}}.
 
         Note: the above error is thrown each time the \[[Call]] method is invoked.
     1. Let |args| be « ».
@@ -1141,6 +1158,14 @@ This slot holds a [=function address=] relative to the [=surrounding agent=]'s [
         1. Otherwise, let |arg| be undefined.
         1. [=list/Append=] [=ToWebAssemblyValue=](|arg|, |t|) to |args|.
         1. Set |i| to |i| + 1.
+    1. return |args|
+</div>
+
+<div algorithm>
+  To <dfn>call an Exported Function</dfn> with [=function address=] |funcaddr| and a [=list=] of JavaScript arguments |argValues|, perform the following steps:
+    1. Let |store| be the [=surrounding agent=]'s [=associated store=].
+    1. Let |functype| be [=func_type=](|store|, |funcaddr|).
+    1. Let |args| be the result of [=coerce JavaScript arguments|coercing arguments=] (|functype|,|argValues|)
     1. Let (|store|, |ret|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
     1. If |ret| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
@@ -1169,13 +1194,23 @@ Note: Exported Functions do not have a \[[Construct]] method and thus it is not 
 
 <div algorithm>
   To <dfn>run a host function</dfn> from the JavaScript object |func|, type |functype|, and [=list=] of [=WebAssembly values=] |arguments|, perform the following steps:
+    1. Let [|parameters|] → [|resultTypes|] be |functype|.
+    1. Let |jsArguments| be the result of [=coerce WebAssembly arguments=](|parameters|,|arguments|)
+    1. Let |ret| be [=?=] [$Call$](|func|, undefined, |jsArguments|).
+    1. Return the result of performing [=coerce a JavaScript return=] on |resultTypes| and |ret|.
+</div>
 
-    1. Let [|parameters|] → [|results|] be |functype|.
-    1. If |parameters| or |results| contain [=v128=] or [=exnref=], throw a {{TypeError}}.
+<div algorithm>
+  To <dfn>coerce WebAssembly arguments</dfn> from a [=list=] of |parameterTypes| and a [=list=] of JavaScript arguments |arguments|, perform the following steps
+    1. If |parameterTypes| contain [=v128=], throw a {{TypeError}}.
     1. Let |jsArguments| be « ».
     1. [=list/iterate|For each=] |arg| of |arguments|,
         1. [=list/Append=] [=!=] [=ToJSValue=](|arg|) to |jsArguments|.
-    1. Let |ret| be [=?=] [$Call$](|func|, undefined, |jsArguments|).
+    1. Return |jsArguments|
+</div>
+
+<div algorithm>
+  To <dfn>coerce a JavaScript return</dfn> from a JavaScript |ret| and a list of |results| types, perform the following steps:
     1. Let |resultsSize| be |results|'s [=list/size=].
     1. If |resultsSize| is 0, return « ».
     1. Otherwise, if |resultsSize| is 1, return « [=?=] [=ToWebAssemblyValue=](|ret|, |results|[0]) ».
@@ -1188,6 +1223,18 @@ Note: Exported Functions do not have a \[[Construct]] method and thus it is not 
         1. For each |value| and |resultType| in |values| and |results|, paired linearly,
             1. [=list/Append=] [=ToWebAssemblyValue=](|value|, |resultType|) to |wasmValues|.
         1. Return |wasmValues|.
+</div>
+
+<div algorithm>
+  To <dfn>coerce a JavaScript exception</dfn> from a JavaScript exception |v|, perform the following steps:
+    1. If |v| [=implements=] {{Exception}},
+        1. Let |type| be |v|.\[[Type]].
+        1. Let |payload| be |v|.\[[Payload]].
+    1. Otherwise,
+        1. Let |type| be the [=JavaScript exception tag=].
+        1. Let |payload| be « ».
+    1. Let |opaqueData| be [=ToWebAssemblyValue=](|v|, [=externref=])
+    1. Return the triple |type|, |payload| and |opaqueData|.
 </div>
 
 <div algorithm>
@@ -1327,6 +1374,154 @@ The algorithm <dfn>ToWebAssemblyValue</dfn>(|v|, |type|) coerces a JavaScript va
     1. Return |r|.
 1. Assert: This step is not reached.
 
+</div>
+
+<h3 id="jspi">JavaScript Promise Integration</h3>
+
+A {{Suspending}} object represents a JavaScript function whose calls via WebAssembly imports should be *suspended* when they return a Promise object.
+Each {{Suspending}} object has a \[[wrappedFunction]] internal slot which holds a JavaScript function.
+
+In addition, the {{promising}} function takes as argument a WebAssembly function and returns a JavaScript function that returns a Promise that is resolved when the WebAssembly function completes.
+
+<pre class="idl">
+[Exposed=*]
+partial namespace WebAssembly {
+    Function promising(Function wasmFunc);
+};
+
+[LegacyNamespace=WebAssembly, Exposed=*]
+interface Suspending {
+    constructor(Function jsFun);
+};
+</pre>
+
+<div algorithm>
+    The  <dfn method for="WebAssembly">promising(|wasmFunc|)</dfn> function, when invoked, performs the following steps:
+    1. If [$IsCallable$](|wasmFunc|) is false, throw a {{TypeError}}.
+    1. If |wasmFunc| does not have a \[[FunctionAddress]] internal slot, throw a {{TypeError}}.
+    1. Let |builder| be a new [=AbstractClosure=] with parameters that captures |wasmFunc| that, when invoked, performs [=run a Promising function=].
+    1. Returns [=CreateBuiltinFunction=](|builder|,1,"",<<>>) 
+</div>
+
+<div algorithm>
+  The algorithm to <dfn>run a Promising function</dfn> from the JavaScript object |wasmFunc| and a [=list=] of [=WebAssembly values=] |arguments| consists of the following steps:
+    1. Let |promise| be a new [=PromiseCapabilityRecord=].
+    1. Let |funcaddr| be the value of |wasmFunc|'s \[[FunctionAddress]] internal slot.
+    1. Let |runner| be a new [=AbstractClosure=] of no arguments that captures |promise|, |funcaddr|, |arguments| that, when invoked, performs the following steps:
+        1. Let |store| be the [=surrounding agent=]'s [=associated store=].
+        1. Let |functype| be [=func_type=](|store|, |funcaddr|).
+        1. Let |args| be the result of [=coerce JavaScript arguments|coercing arguments=] (|functype|,|arguments|)
+        1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
+        1. Assert: if control reaches here, we have done waiting for suspended imports
+        1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
+        1. If |result| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
+        1. Otherwise, if |result| is of the form [=throw=] exnaddr,
+            1. Perform [=EvaluateCall=] (|promise|.\[[Reject]],|result|.,false).
+            1. Return UNDETERMINED
+        1. Otherwise, assert |result| is a [=list=] of WebAssembly values
+            1. Let |outArity| be the [=list/size=] of |result|.
+            1. If |outArity| is 0, return undefined.
+            1. Otherwise, if |outArity| is 1, let |jsReturnValue| be [=ToJSValue=](|result|[0]).
+            1. Otherwise,
+               1. Let |values| be « ».
+               1. [=list/iterate|For each=] |r| of |result|,
+               1. [=list/Append=] [=ToJSValue=](|r|) to |values|.
+               1. let |jsReturnValue| be [$CreateArrayFromList$](|values|).
+            1. Perform [=EvaluateCall=] (|promise|.\[[Resolve]],|jsReturnValue|,false)
+            1. Return UNDETERMINED
+    1. Let |con| be [=CreateBuiltinFunction=](|runner|,0,"",<<>>)
+    1. Perform [$Call$](|con|, undefined, <<>>)
+    1. Returns |promise|
+</div>
+
+Note: The extra |$Call$| in the above algorithm ensures that the creation of the Promise is separated from the fullfilling of that Promise. In effect, this allows suspension of the fullfillment to occur whilst allowing the creation of the Promise itself to continue.
+
+<div algorithm>
+    The <dfn constructor for="Suspending">Suspending(|jsFun|)</dfn> constructor, when invoked, performs the following steps:
+    1. If [$IsCallable$](|jsFun|) is false, throw a {{TypeError}}.
+    1. Let |suspendingProto| be \[[%WebAssembly.Suspending.prototype%]]
+    1. Let |susp| be the result of [$OrdinaryObjectCreate$](|suspendingProto|)
+    1. Assign the \[[wrappedFunction]] internal slot of |susp| to |jsFun|
+    1. Return |susp|
+</div>
+
+<div algorithm>
+To <dfn>create a suspending function</dfn> from a JavaScript function |func|, with type |functype| perform the following steps:
+
+    1. Assert: [$IsCallable$](|func|).
+    1. Let |stored settings| be the <a spec=HTML>incumbent settings object</a>.
+    1. Let |hostfunc| be a [=host function=] which performs the following steps when called with arguments |arguments|:
+        1. Let |realm| be |func|'s [=associated Realm=].
+        1. Let |relevant settings| be |realm|'s [=realm/settings object=].
+        1. Let |async_context| be the [=surrounding agent=]'s [=running execution context=].
+        1. [=Prepare to run script=] with |relevant settings|.
+        1. [=Prepare to run a callback=] with |stored settings|.
+        1. Let [|parameters|] → [|results|] be |functype|.
+        1. Let |jsArguments| be the result of [=coerce WebAssembly arguments=](|parameters|,|arguments|)
+        1. Let |ret| be [=?=] [$Call$](|func|, undefined, |jsArguments|).
+        1. [=Clean up after running a callback=] with |stored settings|.
+        1. [=Clean up after running script=] with |relevant settings|.
+        1. Assert: |ret|.\[[Type]] is <emu-const>throw</emu-const> or <emu-const>normal</emu-const>.
+        1. If |ret|.\[[Type]] is <emu-const>throw</emu-const>, then:
+            1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] |ret|.\[[Value]].
+            1. [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
+        1. Otherwise, if [=list/size=] of |ret| is 1 and [$IsPromise$](|ret|.\[[Value]][0]):
+            1. Let |promise| be |ret|.\[[Value]][0].
+            1. Perform the [=Pause=] procedure, returning a new continuation |k|.
+            1. Let |resolved| be an [=AbstractClosure=] with parameters (|v|) that captures |functype|, |k| and performs the following steps when called:
+                1. Let |resultsSize| be |results|'s [=list/size=].
+                1. If |resultsSize| is not 1, throw a {{TypeError}}.
+                1. Let |resultType| be [|results|].[0].
+                1. Let |returnValue| be [=ToWebAssemblyValue=](|v|, |resultType|).
+                1. Perform the [=Enter=] procedure, passing it the captured continuation |k| the coerced |returnValue| and |async_context|.
+                1. Return undefined.
+            1. Let |onResolved| be [=CreateBuiltinFunction=](|resolved|,1,"",[])
+            1. Let |rejected| be an [=AbstractClosure=] with parameters (|e|) that captures |async_context| and performs the following steps when called:
+                1. Perform the [=Reject=] procedure, passing it the captured continuation |k| the exception value |e| and |async_context|.
+                1. Return undefined.
+            1. Let |onRejected| be [=CreateBuiltinFunction=](|rejected|,1,"",[])
+            1. Perform [$PerformPromiseThen$](|promise|, |onResolved|, |onRejected|). 
+            1. Return undefined
+        1. Return the result of performing [=coerce a JavaScript return=] on |results| and |ret|.
+    1. Let |store| be the [=surrounding agent=]'s [=associated store=].
+    1. Let (|store|, |funcaddr|) be [=func_alloc=](|store|, |functype|, |hostfunc|).
+    1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
+    1. Return |funcaddr|.
+</div>
+
+<div dfn>
+An [=execution context=] can be marked <dfn>Paused</dfn> to signal that the computation associated with the [=execution context=] has been paused.
+</div>
+
+<div algorithm>
+The <dfn>Pause</dfn> abstract operation takes a currently executing algorithm and pauses it. The most important parameter |ec| of this operation is an
+[=Execution Context=] which must be the most recent entry in the [=Execution Context Stack=] and which defines which operation is being paused. 
+The result of pausing an operation is a continuation |k| and a newly surfaced [=Execution Context=] -- which must be the [=Execution Context=] immediately
+beneath the one on the [=Execution Context Stack=] that is [=Paused|paused=].
+
+    1. If |ec| is not the most recent entry on the [=Execution Context Stack=] then trap.
+    1. Let |k| be a continuation that represents the remainder of the computation associated with |ec|.
+    1. Remove |ec| from the [=Execution Context Stack=] and mark it as being [=Paused|paused=].
+    1. Assert that the [=Execution Context Stack=] is not empty.
+    1. Return |k|
+</div>
+
+<div algorithm>
+The <dfn>Enter</dfn> abstract operation takes a continuation object |k|, a value object |v| and an [=execution context=] |ec|, and resumes the operations defined by |k|.
+    1. If |ec| is not marked as [=Paused|paused=] then trap.
+    1. Mark |ec| as not [=Paused|paused=].
+    1. Push |ec| on to the [=Execution Context Stack=], making |ec| the current execution context.
+    1. Resume the operations defined by |k|, passing |v| as the value of the last instruction being performed by |k|
+    1. Return undefined
+</div>
+
+<div algorithm>
+The <dfn>Reject</dfn> abstract operation takes a continuation object |k|, an exception object |e| and an [=execution context=] |ec|, and resumes the operations defined by |k| by throwing an exception to the [=Paused|paused=] computation.
+    1. If |ec| is not marked as [=Paused|paused=] then trap.
+    1. Mark |ec| as not [=Paused|paused=].
+    1. Push |ec| on to the [=Execution Context Stack=], making |ec| the current execution context.
+    1. Let |type|, |payload| and |opaqueData| be the result of performing [=coerce a JavaScript exception=} on |e|
+    1. Resume the operations defined by |k|, performing [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
 </div>
 
 
