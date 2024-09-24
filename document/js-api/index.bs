@@ -306,6 +306,13 @@ Each [=agent=] is associated with the following [=ordered map=]s:
     * The <dfn>Host value cache</dfn>, mapping [=host address=]es to values.
 
 
+<h3 id="ec-status-map">Execution Context Status Map</h3>
+
+Note: The Execution Context Status Map is used to enforce certain correspondences between JavaScript execution and WebAssembly execution; particularly in relation to the JavaScript Promise Integration API.
+
+Each [=agent=] is associated with the following [=ordered map=]:
+    * The <dfn>Execution Context Status map</dfn> is used to map [=execution context|execution contexts=] to [=stack status=] values.
+
 <h2 id="webassembly-namespace">The WebAssembly Namespace</h2>
 
 <pre class="idl">
@@ -1378,10 +1385,21 @@ The algorithm <dfn>ToWebAssemblyValue</dfn>(|v|, |type|) coerces a JavaScript va
 
 <h3 id="jspi">JavaScript Promise Integration</h3>
 
+Note: The JavaScript Promise Integration API (JSPI) allows WebAssembly functions to suspend and resume their execution -- based on the behavior of JavaScript functions that return Promise objects.
+
 A {{Suspending}} object represents a JavaScript function whose calls via WebAssembly imports should be *suspended* when they return a Promise object.
 Each {{Suspending}} object has a \[[wrappedFunction]] internal slot which holds a JavaScript function.
 
 In addition, the {{promising}} function takes as argument a WebAssembly function and returns a JavaScript function that returns a Promise that is resolved when the WebAssembly function completes.
+
+Each [=agent=] maintains a [=Execution Context Status map=], mapping from [=execution context|execution contexts=] to a status symbol. If present, a status can be one of two <dfn>stack status</dfn> values:
+
+   * <dfn>active</dfn>. This signals that the associated execution context is actively executing and has the potential to be [=paused=].
+   * <dfn>paused</dfn>. This signals that the associated execution is not currently involved in computation and has been paused.
+
+If an execution context is not present in the status mapping, then it may not be [=Pause|paused=] or [=Enter|reentered=].
+
+When a new agent is created, its status mapping is set to the empty map.
 
 <pre class="idl">
 [Exposed=*]
@@ -1411,13 +1429,17 @@ interface Suspending {
         1. Let |store| be the [=surrounding agent=]'s [=associated store=].
         1. Let |functype| be [=func_type=](|store|, |funcaddr|).
         1. Let |args| be the result of [=coerce JavaScript arguments|coercing arguments=] (|functype|,|arguments|)
+        1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
+        1. Let |ec| be the currently executing [=execution context=], i.e., the [=execution context=] that is at the top of the [=surrounding agent=]'s current [=execution context stack=].
+        1. Assert: |map| does not contain any entry for |ec|.
+        1. Add an entry mapping |ec| to [=active=] in |map|.
         1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
         1. Assert: if control reaches here, we have done waiting for suspended imports
+        1. If the entry for |ec| in |map| is not [=active=] then trap. Otherwise, remove the entry for |ec| from [=map=].
         1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
         1. If |result| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
         1. Otherwise, if |result| is of the form [=throw=] exnaddr,
             1. Perform [=EvaluateCall=] (|promise|.\[[Reject]],|result|.,false).
-            1. Return UNDETERMINED
         1. Otherwise, assert |result| is a [=list=] of WebAssembly values
             1. Let |outArity| be the [=list/size=] of |result|.
             1. If |outArity| is 0, return undefined.
@@ -1428,7 +1450,6 @@ interface Suspending {
                1. [=list/Append=] [=ToJSValue=](|r|) to |values|.
                1. let |jsReturnValue| be [$CreateArrayFromList$](|values|).
             1. Perform [=EvaluateCall=] (|promise|.\[[Resolve]],|jsReturnValue|,false)
-            1. Return UNDETERMINED
     1. Let |con| be [=CreateBuiltinFunction=](|runner|,0,"",<<>>)
     1. Perform [$Call$](|con|, undefined, <<>>)
     1. Returns |promise|
@@ -1467,21 +1488,18 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
             1. [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
         1. Otherwise, if [=list/size=] of |ret| is 1 and [$IsPromise$](|ret|.\[[Value]][0]):
             1. Let |promise| be |ret|.\[[Value]][0].
-            1. Perform the [=Pause=] procedure, returning a new continuation |k|.
-            1. Let |resolved| be an [=AbstractClosure=] with parameters (|v|) that captures |functype|, |k| and performs the following steps when called:
+            1. Perform the [=Pause=] procedure on |async_context|, returning a new continuation |k|.
+            1. Let |resolved| be an [=AbstractClosure=] with parameters (|v|) that captures |functype|, |async_context| and |k| and performs the following steps when called:
                 1. Let |resultsSize| be |results|'s [=list/size=].
                 1. If |resultsSize| is not 1, throw a {{TypeError}}.
                 1. Let |resultType| be [|results|].[0].
                 1. Let |returnValue| be [=ToWebAssemblyValue=](|v|, |resultType|).
                 1. Perform the [=Enter=] procedure, passing it the captured continuation |k| the coerced |returnValue| and |async_context|.
-                1. Return undefined.
             1. Let |onResolved| be [=CreateBuiltinFunction=](|resolved|,1,"",[])
             1. Let |rejected| be an [=AbstractClosure=] with parameters (|e|) that captures |async_context| and performs the following steps when called:
                 1. Perform the [=Reject=] procedure, passing it the captured continuation |k| the exception value |e| and |async_context|.
-                1. Return undefined.
             1. Let |onRejected| be [=CreateBuiltinFunction=](|rejected|,1,"",[])
             1. Perform [$PerformPromiseThen$](|promise|, |onResolved|, |onRejected|). 
-            1. Return undefined
         1. Return the result of performing [=coerce a JavaScript return=] on |results| and |ret|.
     1. Let |store| be the [=surrounding agent=]'s [=associated store=].
     1. Let (|store|, |funcaddr|) be [=func_alloc=](|store|, |functype|, |hostfunc|).
@@ -1489,38 +1507,38 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
     1. Return |funcaddr|.
 </div>
 
-<div dfn>
-An [=execution context=] can be marked <dfn>Paused</dfn> to signal that the computation associated with the [=execution context=] has been paused.
-</div>
-
 <div algorithm>
-The <dfn>Pause</dfn> abstract operation takes a currently executing algorithm and pauses it. The most important parameter |ec| of this operation is an
-[=Execution Context=] which must be the most recent entry in the [=Execution Context Stack=] and which defines which operation is being paused. 
-The result of pausing an operation is a continuation |k| and a newly surfaced [=Execution Context=] -- which must be the [=Execution Context=] immediately
-beneath the one on the [=Execution Context Stack=] that is [=Paused|paused=].
+The <dfn>Pause</dfn> abstract operation takes a currently executing algorithm and pauses it. The most important parameter |ec| of this operation is an [=Execution Context=] which must be the most recent entry in the [=Execution Context Stack=] and which defines which operation is being paused. 
+
+The result of pausing an operation is a continuation |k| and a newly surfaced [=Execution Context=] -- which must be the [=Execution Context=] immediately beneath the one on the [=Execution Context Stack=] that is [=paused=].
 
     1. If |ec| is not the most recent entry on the [=Execution Context Stack=] then trap.
+    1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
+    1. If the entry for |ec| in |map| is not [=active=] then trap.
     1. Let |k| be a continuation that represents the remainder of the computation associated with |ec|.
-    1. Remove |ec| from the [=Execution Context Stack=] and mark it as being [=Paused|paused=].
+    1. Remove |ec| from the [=Execution Context Stack=].
+    1. Set the entry for |ec| in |map| to [=paused=].
     1. Assert that the [=Execution Context Stack=] is not empty.
     1. Return |k|
 </div>
 
 <div algorithm>
 The <dfn>Enter</dfn> abstract operation takes a continuation object |k|, a value object |v| and an [=execution context=] |ec|, and resumes the operations defined by |k|.
-    1. If |ec| is not marked as [=Paused|paused=] then trap.
-    1. Mark |ec| as not [=Paused|paused=].
-    1. Push |ec| on to the [=Execution Context Stack=], making |ec| the current execution context.
+    1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
+    1. If the entry for |ec| in |map| is not [=paused=] then trap.
+    1. Set the entry for |ec| in |map| to [=active=].
+    1. Push |ec| on to the [=surrounding agent=]'s [=Execution Context Stack=], making |ec| the current execution context.
     1. Resume the operations defined by |k|, passing |v| as the value of the last instruction being performed by |k|
     1. Return undefined
 </div>
 
 <div algorithm>
-The <dfn>Reject</dfn> abstract operation takes a continuation object |k|, an exception object |e| and an [=execution context=] |ec|, and resumes the operations defined by |k| by throwing an exception to the [=Paused|paused=] computation.
-    1. If |ec| is not marked as [=Paused|paused=] then trap.
-    1. Mark |ec| as not [=Paused|paused=].
-    1. Push |ec| on to the [=Execution Context Stack=], making |ec| the current execution context.
-    1. Let |type|, |payload| and |opaqueData| be the result of performing [=coerce a JavaScript exception=} on |e|
+The <dfn>Reject</dfn> abstract operation takes a continuation object |k|, an exception object |e| and an [=execution context=] |ec|, and resumes the operations defined by |k| by throwing an exception to the [=paused=] computation.
+    1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
+    1. If the entry for |ec| in |map| is not [=paused=] then trap.
+    1. Set the entry for |ec| in |map| to [=active=].
+    1. Push |ec| on to the [=surrounding agent=]'s [=Execution Context Stack=], making |ec| the current execution context.
+    1. Let |type|, |payload| and |opaqueData| be the result of performing [=coerce a JavaScript exception=] on |e|
     1. Resume the operations defined by |k|, performing [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
 </div>
 
