@@ -409,9 +409,9 @@ A {{Module}} object represents a single WebAssembly module. Each {{Module}} obje
                     1. Let |funcaddr| be the value of |v|'s \[[FunctionAddress]] internal slot.
                 1. Otherwise,
                     1. [=Create a host function=] from |v| and |functype|, and let |funcaddr| be the result.
-            1. Otherwise, if |v| has a \[[wrappedFunction]] insternal slot
+            1. Otherwise, if |v| has a \[[wrappedFunction]] internal slot
                     1. Let |func| be the value of |v|'s \[[wrappedFunction]] internal slot.
-                    1. Assert: [$IsCallable$](|func|) is true
+                    1. Assert: [$IsCallable$](|func|) is true.
                     1. [=Create a suspending function|create a suspending function=] from |func| and |functype|, and let |funcaddr| be the result.
             1. Otherwise, throw a {{LinkError}} exception.
             1. Let |index| be the number of external functions in |imports|. This value |index| is known as the <dfn>index of the host function</dfn> |funcaddr|.
@@ -1165,7 +1165,7 @@ This slot holds a [=function address=] relative to the [=surrounding agent=]'s [
         1. Otherwise, let |arg| be undefined.
         1. [=list/Append=] [=ToWebAssemblyValue=](|arg|, |t|) to |args|.
         1. Set |i| to |i| + 1.
-    1. return |args|
+    1. return |args|.
 </div>
 
 <div algorithm>
@@ -1418,14 +1418,14 @@ interface Suspending {
     1. If [$IsCallable$](|wasmFunc|) is false, throw a {{TypeError}}.
     1. If |wasmFunc| does not have a \[[FunctionAddress]] internal slot, throw a {{TypeError}}.
     1. Let |builder| be a new [=AbstractClosure=] with parameters that captures |wasmFunc| that, when invoked, performs [=run a Promising function=].
-    1. Returns [=CreateBuiltinFunction=](|builder|,1,"",<<>>) 
+    1. Returns [=CreateBuiltinFunction=](|builder|,1,"", « ») .
 </div>
 
 <div algorithm>
   The algorithm to <dfn>run a Promising function</dfn> from the JavaScript object |wasmFunc| and a [=list=] of [=WebAssembly values=] |arguments| consists of the following steps:
     1. Let |promise| be a new [=PromiseCapabilityRecord=].
     1. Let |funcaddr| be the value of |wasmFunc|'s \[[FunctionAddress]] internal slot.
-    1. Let |runner| be a new [=AbstractClosure=] of no arguments that captures |promise|, |funcaddr|, |arguments| that, when invoked, performs the following steps:
+    1. Let |runner| be a new [=AbstractClosure=] with no arguments that captures |promise|, |funcaddr|, and |arguments| that performs the following steps when called:
         1. Let |store| be the [=surrounding agent=]'s [=associated store=].
         1. Let |functype| be [=func_type=](|store|, |funcaddr|).
         1. Let |args| be the result of [=coerce JavaScript arguments|coercing arguments=] (|functype|,|arguments|)
@@ -1462,7 +1462,7 @@ Note: The extra |$Call$| in the above algorithm ensures that the creation of the
     1. If [$IsCallable$](|jsFun|) is false, throw a {{TypeError}}.
     1. Let |suspendingProto| be \[[%WebAssembly.Suspending.prototype%]]
     1. Let |susp| be the result of [$OrdinaryObjectCreate$](|suspendingProto|)
-    1. Assign the \[[wrappedFunction]] internal slot of |susp| to |jsFun|
+    1. Assign the \[[WrappedFunction]] internal slot of |susp| to |jsFun|.
     1. Return |susp|
 </div>
 
@@ -1494,7 +1494,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
                 1. If |resultsSize| is not 1, throw a {{TypeError}}.
                 1. Let |resultType| be [|results|].[0].
                 1. Let |returnValue| be [=ToWebAssemblyValue=](|v|, |resultType|).
-                1. Perform the [=Enter=] procedure, passing it the captured continuation |k| the coerced |returnValue| and |async_context|.
+                1. Perform the [=Enter=] procedure, passing it the captured continuation |k|, the coerced |returnValue|, and |async_context|.
             1. Let |onResolved| be [=CreateBuiltinFunction=](|resolved|,1,"",[])
             1. Let |rejected| be an [=AbstractClosure=] with parameters (|e|) that captures |async_context| and performs the following steps when called:
                 1. Perform the [=Reject=] procedure, passing it the captured continuation |k| the exception value |e| and |async_context|.
