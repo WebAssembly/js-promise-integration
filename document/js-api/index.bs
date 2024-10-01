@@ -1425,34 +1425,39 @@ interface Suspending {
   The algorithm to <dfn>run a Promising function</dfn> from the JavaScript object |wasmFunc| and a [=list=] of [=WebAssembly values=] |arguments| consists of the following steps:
     1. Let |promise| be a new [=PromiseCapabilityRecord=].
     1. Let |funcaddr| be the value of |wasmFunc|'s \[[FunctionAddress]] internal slot.
-    1. Let |runner| be a new [=AbstractClosure=] with no arguments that captures |promise|, |funcaddr|, and |arguments| that performs the following steps when called:
-        1. Let |store| be the [=surrounding agent=]'s [=associated store=].
-        1. Let |functype| be [=func_type=](|store|, |funcaddr|).
-        1. Let |args| be the result of [=coerce JavaScript arguments|coercing arguments=] (|functype|,|arguments|)
-        1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
-        1. Let |ec| be the currently executing [=execution context=], i.e., the [=execution context=] that is at the top of the [=surrounding agent=]'s current [=execution context stack=].
-        1. Assert: |map| does not contain any entry for |ec|.
-        1. Add an entry mapping |ec| to [=active=] in |map|.
-        1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
-        1. Assert: if control reaches here, we have done waiting for suspended imports
-        1. If the entry for |ec| in |map| is not [=active=] then trap. Otherwise, remove the entry for |ec| from [=map=].
-        1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
-        1. If |result| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
-        1. Otherwise, if |result| is of the form [=throw=] exnaddr,
-            1. Perform [=EvaluateCall=] (|promise|.\[[Reject]],|result|.,false).
-        1. Otherwise, assert |result| is a [=list=] of WebAssembly values
-            1. Let |outArity| be the [=list/size=] of |result|.
-            1. If |outArity| is 0, return undefined.
-            1. Otherwise, if |outArity| is 1, let |jsReturnValue| be [=ToJSValue=](|result|[0]).
-            1. Otherwise,
-               1. Let |values| be « ».
-               1. [=list/iterate|For each=] |r| of |result|,
-               1. [=list/Append=] [=ToJSValue=](|r|) to |values|.
-               1. let |jsReturnValue| be [$CreateArrayFromList$](|values|).
-            1. Perform [=EvaluateCall=] (|promise|.\[[Resolve]],|jsReturnValue|,false)
+    1. Let |runner| be a new [=AbstractClosure=] with no arguments that captures |promise|, |funcaddr|, and |arguments| that performs [=evaluate a Promising function=](|promise|,|funcaddr|,|arguments|)
     1. Let |con| be [=CreateBuiltinFunction=](|runner|,0,"",<<>>)
     1. Perform [$Call$](|con|, undefined, <<>>)
     1. Returns |promise|
+</div>
+
+<div algorithm>
+  The algorithm to <dfn>evaluate a Promising function</dfn>(|promise|, |funcaddr|, |arguments|) consists of the following steps:
+    1. Let |store| be the [=surrounding agent=]'s [=associated store=].
+    1. Let |functype| be [=func_type=](|store|, |funcaddr|).
+    1. Let |args| be the result of [=coerce JavaScript arguments|coercing arguments=] (|functype|,|arguments|)
+    1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
+    1. Let |ec| be the currently executing [=execution context=], i.e., the [=execution context=] that is at the top of the [=surrounding agent=]'s current [=execution context stack=].
+    1. Assert: |map| does not contain any entry for |ec|.
+    1. Add an entry mapping |ec| to [=active=] in |map|.
+    1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
+    1. Assert: if control reaches here, we have done waiting for suspended imports
+    1. If the entry for |ec| in |map| is not [=active=] then trap. Otherwise, remove the entry for |ec| from [=map=].
+    1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
+    1. If |result| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
+    1. Otherwise, if |result| is of the form [=throw=] exnaddr,
+        1. Perform [=EvaluateCall=] (|promise|.\[[Reject]],|result|.,false).
+    1. Otherwise, assert |result| is a [=list=] of WebAssembly values
+        1. Let |outArity| be the [=list/size=] of |result|.
+        1. If |outArity| is 0, return undefined.
+        1. Otherwise, if |outArity| is 1, let |jsReturnValue| be [=ToJSValue=](|result|[0]).
+        1. Otherwise,
+            1. Let |values| be « ».
+            1. [=list/iterate|For each=] |r| of |result|,
+            1. [=list/Append=] [=ToJSValue=](|r|) to |values|.
+            1. let |jsReturnValue| be [$CreateArrayFromList$](|values|).
+        1. Perform [=EvaluateCall=] (|promise|.\[[Resolve]],|jsReturnValue|,false)
+    1. Return undefined.
 </div>
 
 Note: The extra |$Call$| in the above algorithm ensures that the creation of the Promise is separated from the fullfilling of that Promise. In effect, this allows suspension of the fullfillment to occur whilst allowing the creation of the Promise itself to continue.
@@ -1499,7 +1504,8 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
             1. Let |rejected| be an [=AbstractClosure=] with parameters (|e|) that captures |async_context| and performs the following steps when called:
                 1. Perform the [=Reject=] procedure, passing it the captured continuation |k| the exception value |e| and |async_context|.
             1. Let |onRejected| be [=CreateBuiltinFunction=](|rejected|,1,"",[])
-            1. Perform [$PerformPromiseThen$](|promise|, |onResolved|, |onRejected|). 
+            1. Perform [$PerformPromiseThen$](|promise|, |onResolved|, |onRejected|).
+            1. Note: this terminates the innermost call to [=evaluate a Promising function=] algorithm. Control will return to the caller of that algorithm.
         1. Return the result of performing [=coerce a JavaScript return=] on |results| and |ret|.
     1. Let |store| be the [=surrounding agent=]'s [=associated store=].
     1. Let (|store|, |funcaddr|) be [=func_alloc=](|store|, |functype|, |hostfunc|).
