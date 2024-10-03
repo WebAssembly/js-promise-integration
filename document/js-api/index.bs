@@ -1417,15 +1417,15 @@ interface Suspending {
     The  <dfn method for="WebAssembly">promising(|wasmFunc|)</dfn> function, when invoked, performs the following steps:
     1. If [$IsCallable$](|wasmFunc|) is false, throw a {{TypeError}}.
     1. If |wasmFunc| does not have a \[[FunctionAddress]] internal slot, throw a {{TypeError}}.
-    1. Let |builder| be a new [=AbstractClosure=] with parameters that captures |wasmFunc| that, when invoked, performs [=run a Promising function=].
-    1. Returns [=CreateBuiltinFunction=](|builder|,1,"", « ») .
+    1. Let |builder| be a new [=AbstractClosure=] with no parameters that captures |wasmFunc| and performs [=run a Promising function=] when called.
+    1. Returns the result of [=CreateBuiltinFunction=](|builder|,1,"", « »).
 </div>
 
 <div algorithm>
   The algorithm to <dfn>run a Promising function</dfn> from the JavaScript object |wasmFunc| and a [=list=] of [=WebAssembly values=] |arguments| consists of the following steps:
     1. Let |promise| be a new [=PromiseCapabilityRecord=].
     1. Let |funcaddr| be the value of |wasmFunc|'s \[[FunctionAddress]] internal slot.
-    1. Let |runner| be a new [=AbstractClosure=] with no arguments that captures |promise|, |funcaddr|, and |arguments| that performs [=evaluate a Promising function=](|promise|,|funcaddr|,|arguments|)
+    1. Let |runner| be a new [=AbstractClosure=] with no parameters that captures |promise|, |funcaddr|, and |arguments| and performs [=evaluate a Promising function=](|promise|,|funcaddr|,|arguments|) when called.
     1. Perform [=?=][$AsyncFunctionStart$](|promise|,|runner|)
     1. Returns |promise|
 </div>
@@ -1440,7 +1440,7 @@ interface Suspending {
     1. Assert: |map| does not contain any entry for |ec|.
     1. Add an entry mapping |ec| to [=active=] in |map|.
     1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
-    1. Assert: if control reaches here, we have done waiting for suspended imports
+    1. Assert: if control reaches here, we have done waiting for suspended imports.
     1. If the entry for |ec| in |map| is not [=active=] then trap. Otherwise, remove the entry for |ec| from [=map=].
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
     1. If |result| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
@@ -1464,10 +1464,10 @@ Note: The extra |$Call$| in the above algorithm ensures that the creation of the
 <div algorithm>
     The <dfn constructor for="Suspending">Suspending(|jsFun|)</dfn> constructor, when invoked, performs the following steps:
     1. If [$IsCallable$](|jsFun|) is false, throw a {{TypeError}}.
-    1. Let |suspendingProto| be \[[%WebAssembly.Suspending.prototype%]]
-    1. Let |susp| be the result of [$OrdinaryObjectCreate$](|suspendingProto|)
+    1. Let |suspendingProto| be \[[%WebAssembly.Suspending.prototype%]].
+    1. Let |susp| be the result of [$OrdinaryObjectCreate$](|suspendingProto|,«\[[WrappedFunction]]»).
     1. Assign the \[[WrappedFunction]] internal slot of |susp| to |jsFun|.
-    1. Return |susp|
+    1. Return |susp|.
 </div>
 
 <div algorithm>
@@ -1484,7 +1484,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
         1. [=Prepare to run script=] with |relevant settings|.
         1. [=Prepare to run a callback=] with |stored settings|.
         1. Let [|parameters|] → [|resultTypes|] be |functype|.
-        1. Let |jsArguments| be the result of [=coerce WebAssembly arguments=](|parameters|,|arguments|)
+        1. Let |jsArguments| be the result of [=coerce WebAssembly arguments=](|parameters|,|arguments|).
         1. Let |ret| be [=?=] [$Call$](|func|, undefined, |jsArguments|).
         1. [=Clean up after running a callback=] with |stored settings|.
         1. [=Clean up after running script=] with |relevant settings|.
@@ -1495,7 +1495,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
         1. Otherwise, if [=list/size=] of |ret| is 1 and [$IsPromise$](|ret|.\[[Value]][0]):
             1. Let |promise| be |ret|.\[[Value]][0].
             1. Set the entry for |async_context| in |map| to [=paused=].
-            1. Let |awaitResult| be the result of performing [$Await$](|promise|)
+            1. Let |awaitResult| be the result of performing [$Await$](|promise|).
             1. Note: this will suspend both this algorithm, and the WebAssembly function being invoked by the [=evaluate a Promising function=] algorithm. On return, |ret| will be either a normal completion or an exceptional completion.
             1. If the entry for |async_context| in |map| is not [=paused=] then trap, otherwise, set the entry to [=active=].
             1. If |awaitResult|.\[[Type]] is <emu-const>throw</emu-const>, then:
