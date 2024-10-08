@@ -236,7 +236,7 @@ let env () : env =
 let current_mod (env : env) = "$$" ^ string_of_int env.current_mod
 let of_mod_opt (env : env) = function
   | None -> current_mod env
-  | Some x -> x.it
+  | Some x -> "$" ^ x.it
 
 let current_inst (env : env) = "$" ^ string_of_int env.current_inst
 let of_inst_opt (env : env) = function
@@ -622,9 +622,6 @@ let rec of_definition def =
     try of_definition (snd (Parse.Module.parse_string ~offset:s.at s.it))
     with Parse.Syntax _ | Custom.Syntax _ -> of_bytes "<malformed quote>"
 
-let of_instance env x_opt =
-  "instance(" ^ of_mod_opt env x_opt ^ ")"
-
 let of_wrapper env x_opt name wrap_action wrap_assertion at =
   let x = of_inst_opt env x_opt in
   let bs = wrap name wrap_action wrap_assertion at in
@@ -677,9 +674,9 @@ let of_assertion env ass =
   | AssertInvalidCustom (def, _) ->
     "assert_invalid_custom(" ^ of_definition def ^ ");"
   | AssertUnlinkable (x_opt, _) ->
-    "assert_unlinkable(" ^ of_instance env x_opt ^ ");"
+    "assert_unlinkable(" ^ of_mod_opt env x_opt ^ ");"
   | AssertUninstantiable (x_opt, _) ->
-    "assert_uninstantiable(" ^ of_instance env x_opt ^ ");"
+    "assert_uninstantiable(" ^ of_mod_opt env x_opt ^ ");"
   | AssertReturn (act, ress) ->
     of_assertion' env act "assert_return" (List.map of_result ress)
       (Some (assert_return ress))
@@ -702,7 +699,7 @@ let of_command env cmd =
       | Quoted (_, s) ->
         unquote (snd (Parse.Module.parse_string ~offset:s.at s.it))
     in bind_mod env x_opt (unquote def);
-    "let " ^ current_mod env ^ " = " ^ of_definition def ^ ";\n" ^
+    "let " ^ current_mod env ^ " = module(" ^ of_definition def ^ ");\n" ^
     (if x_opt = None then "" else
     "let " ^ of_mod_opt env x_opt ^ " = " ^ current_mod env ^ ";\n")
   | Instance (x1_opt, x2_opt) ->
