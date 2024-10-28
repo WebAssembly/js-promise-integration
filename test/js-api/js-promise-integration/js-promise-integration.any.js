@@ -32,7 +32,7 @@ test(() => {
 
 test(() => {
   let builder = new WasmModuleBuilder();
-  builder.addGlobal(kWasmI32, true, false).exportAs('g');
+  builder.addGlobal(kWasmI32, true).exportAs('g');
   builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprI32Const, 42,
@@ -41,7 +41,7 @@ test(() => {
   let instance = builder.instantiate();
   let wrapper = WebAssembly.promising(instance.exports.test);
   wrapper();
-  assertEquals(42, instance.exports.g.value);
+  assert_equals(42, instance.exports.g.value);
 });
 
 promise_test(async () => {
@@ -161,7 +161,7 @@ promise_test(async () => {
   let wrapped_export = Promising(instance.exports.test);
 
 //  AbeforeB.showAbeforeB();
-  exported_promise = wrapped_export();
+  let exported_promise = wrapped_export();
 //  AbeforeB.showAbeforeB();
 
   AbeforeB.setB();
@@ -189,7 +189,7 @@ promise_test(async () => {
 
   let wrapped_export = Promising(instance.exports.test);
 
-  exported_promise = wrapped_export();
+  let exported_promise = wrapped_export();
   AbeforeB.setB();
 
   assert_equals(await exported_promise, 42);
@@ -389,9 +389,7 @@ test(() => {
   builder.addFunction("export", kSig_v_v).addBody([]).exportFunc();
   let instance = builder.instantiate();
   let export_wrapper = WebAssembly.promising(instance.exports.export);
-  let export_sig = export_wrapper.type();
-  assert_array_equals(export_sig.parameters, []);
-  assert_array_equals(export_sig.results, ['externref']);
+  assert_true(export_wrapper instanceof Function);
 });
 
 promise_test(async (t) => {
@@ -403,7 +401,7 @@ promise_test(async (t) => {
   let instance = builder.instantiate();
   let wrapper = WebAssembly.promising(instance.exports.test);
 
-  promise_rejects(t, RangeError, wrapper(),/Maximum call stack size exceeded/);
+  promise_rejects(t, new Error(), wrapper(), /Maximum call stack size exceeded/);
 });
 
 promise_test(async (t) => {
@@ -440,7 +438,7 @@ promise_test(async (t) => {
         }});
   // export1 (promising)
   let wrapper = WebAssembly.promising(instance.exports.export1);
-  promise_rejects(t, WebAssembly.RuntimeError, wrapper(),
+  promise_rejects(t, new WebAssembly.RuntimeError(), wrapper(),
       /trying to suspend JS frames/);
 });
 
