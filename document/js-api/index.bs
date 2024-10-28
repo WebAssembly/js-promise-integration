@@ -808,7 +808,7 @@ Immediately after a WebAssembly [=memory.grow=] instruction executes, perform th
 <div algorithm="memory.grow">
     1. If the top of the stack is not [=i32.const=] (−1),
         1. Let |frame| be the [=current frame=].
-        1. Assert: due to validation, |frame|.[=frame/module=].[=moduleinst/memaddrs=][0] exists.
+        1. Assert: Due to validation, |frame|.[=frame/module=].[=moduleinst/memaddrs=][0] exists.
         1. Let |memaddr| be the memory address |frame|.[=frame/module=].[=moduleinst/memaddrs=][0].
         1. [=Refresh the memory buffer=] of |memaddr|.
 </div>
@@ -1440,13 +1440,15 @@ interface Suspending {
     1. Assert: |map| does not contain any entry for |ec|.
     1. Add an entry mapping |ec| to [=active=] in |map|.
     1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
-    1. Assert: if control reaches here, we have done waiting for suspended imports.
+    1. Assert: If control reaches here, we have done waiting for suspended imports.
     1. If the entry for |ec| in |map| is not [=active=] then trap. Otherwise, remove the entry for |ec| from [=map=].
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
     1. If |result| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
     1. Otherwise, if |result| is of the form [=throw=] exnaddr,
-        1. Perform [=EvaluateCall=] (|promise|.\[[Reject]],|result|.,false).
-    1. Otherwise, assert |result| is a [=list=] of WebAssembly values
+        1. Perform [$Call$] (|promise|.\[[Reject]],|result|.,false).
+        1. Note: The result of the above call is ignored.
+    1. Otherwise, 
+        1. Assert: |result| is a [=list=] of WebAssembly values
         1. Let |outArity| be the [=list/size=] of |result|.
         1. If |outArity| is 0, return undefined.
         1. Otherwise, if |outArity| is 1, let |jsReturnValue| be [=ToJSValue=](|result|[0]).
@@ -1454,8 +1456,8 @@ interface Suspending {
             1. Let |values| be « ».
             1. [=list/iterate|For each=] |r| of |result|,
             1. [=list/Append=] [=ToJSValue=](|r|) to |values|.
-            1. let |jsReturnValue| be [$CreateArrayFromList$](|values|).
-        1. Perform [=EvaluateCall=] (|promise|.\[[Resolve]],|jsReturnValue|,false)
+            1. Let |jsReturnValue| be [$CreateArrayFromList$](|values|).
+        1. Perform [$Call$] (|promise|.\[[Resolve]],|jsReturnValue|,false)
     1. Return UNUSED.
 </div>
 
@@ -1485,7 +1487,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
         1. [=Prepare to run a callback=] with |stored settings|.
         1. Let [|parameters|] → [|resultTypes|] be |functype|.
         1. Let |jsArguments| be the result of [=coerce WebAssembly arguments=](|parameters|,|arguments|).
-        1. Let |ret| be [=?=] [$Call$](|func|, undefined, |jsArguments|).
+        1. Let |ret| be [$Completion$]([$Call$](|func|, undefined, |jsArguments|)).
         1. [=Clean up after running a callback=] with |stored settings|.
         1. [=Clean up after running script=] with |relevant settings|.
         1. Assert: |ret|.\[[Type]] is <emu-const>throw</emu-const> or <emu-const>normal</emu-const>.
@@ -1495,8 +1497,9 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
         1. Otherwise, if [=list/size=] of |ret| is 1 and [$IsPromise$](|ret|.\[[Value]][0]):
             1. Let |promise| be |ret|.\[[Value]][0].
             1. Set the entry for |async_context| in |map| to [=paused=].
-            1. Let |awaitResult| be the result of performing [$Await$](|promise|).
-            1. Note: this will suspend both this algorithm, and the WebAssembly function being invoked by the [=evaluate a Promising function=] algorithm. On return, |ret| will be either a normal completion or an exceptional completion.
+            1. Let |awaitResult| be the result of performing [$Completion$]([$Await$](|promise|)).
+            1. Note: that we only invoke [$Await$] if the call to |func| has returned a Promise object.
+            1. Note: this will suspend both this algorithm, and the WebAssembly function being invoked by the [=evaluate a Promising function=] algorithm. On return, |ret| will be either a normal completion or a throw completion.
             1. If the entry for |async_context| in |map| is not [=paused=] then trap, otherwise, set the entry to [=active=].
             1. If |awaitResult|.\[[Type]] is <emu-const>throw</emu-const>, then:
                1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] |ret|.\[[Value]].
@@ -1507,8 +1510,6 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
     1. Let (|store|, |funcaddr|) be [=func_alloc=](|store|, |functype|, |hostfunc|).
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
     1. Return |funcaddr|.
-
-Note that we only invoke [$Await$] on the result of calling the JavaScript function |func| if it has returned a Promise object.
 </div>
 
 <h3 id="tags">Tags</h3>
