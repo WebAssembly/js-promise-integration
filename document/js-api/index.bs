@@ -404,7 +404,7 @@ A {{Module}} object represents a single WebAssembly module. Each {{Module}} obje
         1. If [=Type=](|o|) is not Object, throw a {{TypeError}} exception.
         1. Let |v| be [=?=] [$Get$](|o|, |componentName|).
         1. If |externtype| is of the form [=func=] |functype|,
-            1. If [$IsCallable$](|v|) is true
+            1. If [$IsCallable$](|v|) is true,
                 1. If |v| has a \[[FunctionAddress]] internal slot, and therefore is an [=Exported Function=],
                     1. Let |funcaddr| be the value of |v|'s \[[FunctionAddress]] internal slot.
                 1. Otherwise,
