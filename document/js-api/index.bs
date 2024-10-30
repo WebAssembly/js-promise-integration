@@ -409,8 +409,8 @@ A {{Module}} object represents a single WebAssembly module. Each {{Module}} obje
                     1. Let |funcaddr| be the value of |v|'s \[[FunctionAddress]] internal slot.
                 1. Otherwise,
                     1. [=Create a host function=] from |v| and |functype|, and let |funcaddr| be the result.
-            1. Otherwise, if |v| has a \[[wrappedFunction]] internal slot
-                    1. Let |func| be the value of |v|'s \[[wrappedFunction]] internal slot.
+            1. Otherwise, if |v| has a \[[WrappedFunction]] internal slot
+                    1. Let |func| be the value of |v|'s \[[WrappedFunction]] internal slot.
                     1. Assert: [$IsCallable$](|func|) is true.
                     1. [=Create a suspending function|create a suspending function=] from |func| and |functype|, and let |funcaddr| be the result.
             1. Otherwise, throw a {{LinkError}} exception.
@@ -1387,8 +1387,8 @@ The algorithm <dfn>ToWebAssemblyValue</dfn>(|v|, |type|) coerces a JavaScript va
 
 Note: The JavaScript Promise Integration API (JSPI) allows WebAssembly functions to suspend and resume their execution -- based on the behavior of JavaScript functions that return Promise objects.
 
-A {{Suspending}} object represents a JavaScript function whose calls via WebAssembly imports should be *suspended* when they return a Promise object.
-Each {{Suspending}} object has a \[[wrappedFunction]] internal slot which holds a JavaScript function.
+A {{Suspending}} marker object represents a JavaScript function whose calls via WebAssembly imports should be *suspended* when they return a Promise object.
+Each {{Suspending}} marker object has a \[[WrappedFunction]] internal slot which holds a JavaScript function.
 
 In addition, the {{promising}} function takes as argument a WebAssembly function and returns a JavaScript function that returns a Promise that is resolved when the WebAssembly function completes.
 
