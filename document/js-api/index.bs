@@ -1251,7 +1251,7 @@ Note: Exported Functions do not have a \[[Construct]] method and thus it is not 
         1. If |result|.\[[Type]] is <emu-const>normal</emu-const>, then:
             1. Return the result of performing [=coerce a JavaScript return=] on |resultTypes| and |ret|.
         1. If |result|.\[[Type]] is <emu-const>throw</emu-const>, then:
-            1. Perform [=throw a JavaScript exception|throw the JavaScript exception=] |result|.\[[Value]].
+            1. Perform [=throw a JavaScript exception|throw the JavaScript exception=] on |result|.\[[Value]].
     1. Let (|store|, |funcaddr|) be [=func_alloc=](|store|, |functype|, |hostfunc|).
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
     1. Return |funcaddr|.
@@ -1439,7 +1439,7 @@ interface Suspending {
     1. Assert: If control reaches here, we have done waiting for suspended imports.
     1. If the entry for |ec| in |map| is not [=active=] then throw a WebAssembly {{RuntimeError}} exception. Otherwise, remove the entry for |ec| from [=map=].
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
-    1. If |result| is [=error=], throw an exception. This exception must be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
+    1. If |result| is [=error=], throw a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
     1. Otherwise, if |result| is of the form [=throw=] exnaddr,
         1. [=Reject=] |promise| with |result|.
     1. Otherwise,
@@ -1476,8 +1476,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
         1. Let |async_context| be the [=surrounding agent=]'s [=running execution context=].
         1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
         1. If the entry for |async_context| in |map| is not [=active=], then:
-            1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] {{RuntimeError}}.
-            1. [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
+            1. Perform [=throw a JavaScript exception=] with a {{RuntimeError}} exception.
         1. [=Prepare to run script=] with |relevant settings|.
         1. [=Prepare to run a callback=] with |stored settings|.
         1. Let [|parameters|] → [|resultTypes|] be |functype|.
@@ -1496,8 +1495,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
             1. Note: We only invoke [$Await$] if the call to |func| has returned a Promise object.
             1. Note: This will suspend both this algorithm, and the WebAssembly function being invoked by the [=evaluate a Promising function=] algorithm. On return, |ret| will be either a normal completion or a throw completion.
             1. If the entry for |async_context| in |map| is not [=paused=] then:
-                1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] {{RuntimeError}}.
-                1. [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
+                1. Perform [=throw a JavaScript exception=] with a {{RuntimeError}}.
             1. Otherwise, set the entry to [=active=].
             1. If |awaitResult|.\[[Type]] is <emu-const>throw</emu-const>, then:
                1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] |ret|.\[[Value]].
