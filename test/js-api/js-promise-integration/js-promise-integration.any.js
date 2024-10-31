@@ -1,24 +1,16 @@
 // META: global=jsshell
 // META: script=/wasm/jsapi/wasm-module-builder.js
 
-function Promising(wasm_export) {
-  return WebAssembly.promising(wasm_export);
-}
-
-function Suspending(jsFun){
-  return new WebAssembly.Suspending(jsFun);
-}
-
 // Test for invalid wrappers
 test(() => {
   assert_throws(TypeError, () => WebAssembly.promising({}),
-      /Argument 0 must be a function/);
+      "Argument 0 must be a function");
   assert_throws(TypeError, () => WebAssembly.promising(() => {}),
-      /Argument 0 must be a WebAssembly exported function/);
+      "Argument 0 must be a WebAssembly exported function");
   assert_throws(TypeError, () => WebAssembly.Suspending(() => {}),
-      /WebAssembly.Suspending must be invoked with 'new'/);
+      "WebAssembly.Suspending must be invoked with 'new'");
   assert_throws(TypeError, () => new WebAssembly.Suspending({}),
-      /Argument 0 must be a function/);
+      "Argument 0 must be a function");
   function asmModule() {
     "use asm";
     function x(v) {
@@ -27,7 +19,7 @@ test(() => {
     return x;
   }
   assert_throws(TypeError, () => WebAssembly.promising(asmModule()),
-      /Argument 0 must be a WebAssembly exported function/);
+      "Argument 0 must be a WebAssembly exported function");
 });
 
 test(() => {
@@ -52,9 +44,9 @@ promise_test(async () => {
           kExprLocalGet, 0,
           kExprCallFunction, import_index, // suspend
       ]).exportFunc();
-  let js_import = Suspending(() => Promise.resolve(42));
+  let js_import = new WebAssembly.Suspending(() => Promise.resolve(42));
   let instance = builder.instantiate({m: {import: js_import}});
-  let wrapped_export = Promising(instance.exports.test);
+  let wrapped_export = WebAssembly.promising(instance.exports.test);
   let export_promise = wrapped_export();
   assert_true(export_promise instanceof Promise);
   assert_equals(await export_promise, 42);
@@ -91,9 +83,9 @@ promise_test(async () => {
   function js_import() {
     return Promise.resolve(++i);
   };
-  let wasm_js_import = Suspending(js_import);
+  let wasm_js_import = new WebAssembly.Suspending(js_import);
   let instance = builder.instantiate({m: {import: wasm_js_import}});
-  let wrapped_export = Promising(instance.exports.test);
+  let wrapped_export = WebAssembly.promising(instance.exports.test);
   let export_promise = wrapped_export();
   assert_equals(instance.exports.g.value, 0);
   assert_true(export_promise instanceof Promise);
@@ -154,11 +146,11 @@ promise_test(async () => {
           kExprCallFunction, import42_index, // suspend?
           kExprCallFunction, importSetA_index
       ]).exportFunc();
-  let import42 = Suspending(()=>Promise.resolve(42));
+  let import42 = new WebAssembly.Suspending(()=>Promise.resolve(42));
   let instance = builder.instantiate({m: {import42: import42,
     setA:AbeforeB.setA}});
 
-  let wrapped_export = Promising(instance.exports.test);
+  let wrapped_export = WebAssembly.promising(instance.exports.test);
 
 //  AbeforeB.showAbeforeB();
   let exported_promise = wrapped_export();
@@ -183,11 +175,11 @@ promise_test(async () => {
           kExprCallFunction, import42_index, // suspend?
           kExprCallFunction, importSetA_index
       ]).exportFunc();
-  let import42 = Suspending(()=>42);
+  let import42 = new WebAssembly.Suspending(()=>42);
   let instance = builder.instantiate({m: {import42: import42,
     setA:AbeforeB.setA}});
 
-  let wrapped_export = Promising(instance.exports.test);
+  let wrapped_export = WebAssembly.promising(instance.exports.test);
 
   let exported_promise = wrapped_export();
   AbeforeB.setB();
@@ -213,10 +205,10 @@ test(t => {
   function js_import() {
     return Promise.resolve();
   };
-  let wasm_js_import = Suspending(js_import);
+  let wasm_js_import = new WebAssembly.Suspending(js_import);
 
   let instance = builder.instantiate({m: {import: wasm_js_import, tag: tag}});
-  let wrapped_export = Promising(instance.exports.test);
+  let wrapped_export = WebAssembly.promising(instance.exports.test);
   let export_promise = wrapped_export();
   assert_true(export_promise instanceof Promise);
   promise_rejects(t, new WebAssembly.Exception(tag, []), export_promise);
@@ -239,10 +231,10 @@ promise_test(async (t) => {
   function js_import() {
     return Promise.reject(new WebAssembly.Exception(tag, [42]));
   };
-  let wasm_js_import = Suspending(js_import);
+  let wasm_js_import = new WebAssembly.Suspending(js_import);
 
   let instance = builder.instantiate({m: {import: wasm_js_import, tag: tag}});
-  let wrapped_export = Promising(instance.exports.test);
+  let wrapped_export = WebAssembly.promising(instance.exports.test);
   let export_promise = wrapped_export();
   assert_true(export_promise instanceof Promise);
   assert_equals(await export_promise, 42);
@@ -273,14 +265,14 @@ async function TestNestedSuspenders(suspend) {
           kExprCallFunction, inner_index
       ]).exportFunc();
 
-  let inner = Suspending(() => suspend ? Promise.resolve(42) : 43);
+  let inner = new WebAssembly.Suspending(() => suspend ? Promise.resolve(42) : 43);
 
   let export_inner;
-  let outer = Suspending(() => export_inner());
+  let outer = new WebAssembly.Suspending(() => export_inner());
 
   let instance = builder.instantiate({m: {inner, outer}});
-  export_inner = Promising(instance.exports.inner);
-  let export_outer = Promising(instance.exports.outer);
+  export_inner = WebAssembly.promising(instance.exports.inner);
+  let export_outer = WebAssembly.promising(instance.exports.outer);
   let result = export_outer();
   assert_true(result instanceof Promise);
   if(suspend)
@@ -310,9 +302,9 @@ test(() => {
       .addBody([
           kExprLocalGet, 0
       ]).exportFunc();
-  let js_import = Suspending(() => Promise.resolve(42));
+  let js_import = new WebAssembly.Suspending(() => Promise.resolve(42));
   let instance = builder.instantiate({m: {import: js_import}});
-  let suspender = Promising(instance.exports.return_suspender)();
+  let suspender = WebAssembly.promising(instance.exports.return_suspender)();
   for (s of [suspender, null, undefined, {}]) {
     assert_throws(WebAssembly.RuntimeError, () => instance.exports.test(s));
   }
@@ -401,7 +393,7 @@ promise_test(async (t) => {
   let instance = builder.instantiate();
   let wrapper = WebAssembly.promising(instance.exports.test);
 
-  promise_rejects(t, new Error(), wrapper(), /Maximum call stack size exceeded/);
+  promise_rejects(t, new Error(), wrapper(), "Maximum call stack size exceeded");
 });
 
 promise_test(async (t) => {
@@ -439,7 +431,7 @@ promise_test(async (t) => {
   // export1 (promising)
   let wrapper = WebAssembly.promising(instance.exports.export1);
   promise_rejects(t, new WebAssembly.RuntimeError(), wrapper(),
-      /trying to suspend JS frames/);
+      "trying to suspend JS frames");
 });
 
 promise_test(async () => {
