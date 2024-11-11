@@ -1436,7 +1436,7 @@ interface Suspending {
     1. Assert: |map| does not contain any entry for |ec|.
     1. Add an entry mapping |ec| to [=active=] in |map|.
     1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
-    1. Assert: If control reaches here, we have done waiting for suspended imports.
+    1. Assert: If control reaches here, we are done waiting for suspended imports.
     1. If the entry for |ec| in |map| is not [=active=] then throw a WebAssembly {{RuntimeError}} exception. Otherwise, remove the entry for |ec| from [=map=].
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
     1. If |result| is [=error=], throw a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
@@ -1445,12 +1445,12 @@ interface Suspending {
     1. Otherwise,
         1. Assert: |result| is a [=list=] of WebAssembly values.
         1. Let |outArity| be the [=list/size=] of |result|.
-        1. If |outArity| is 0, return undefined.
+        1. If |outArity| is 0, let |jsReturnValue| be undefined.
         1. Otherwise, if |outArity| is 1, let |jsReturnValue| be [=ToJSValue=](|result|[0]).
         1. Otherwise,
             1. Let |values| be « ».
             1. [=list/iterate|For each=] |r| of |result|,
-            1. [=list/Append=] [=ToJSValue=](|r|) to |values|.
+                1. [=list/Append=] [=ToJSValue=](|r|) to |values|.
             1. Let |jsReturnValue| be [$CreateArrayFromList$](|values|).
         1. [=Resolve=] |promise| with |jsReturnValue|.
     1. Return UNUSED.
@@ -1498,8 +1498,8 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
                 1. Perform [=throw a JavaScript exception=] with a {{RuntimeError}}.
             1. Otherwise, set the entry to [=active=].
             1. If |awaitResult|.\[[Type]] is <emu-const>throw</emu-const>, then:
-               1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] |ret|.\[[Value]].
-               1. [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
+                1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] |ret|.\[[Value]].
+                1. [=WebAssembly/Throw=] with |type|, |payload| and |opaqueData|.
             1. Otherwise, return the result of performing [=coerce a JavaScript return=] on |resultTypes| and |awaitResult|.
         1. Otherwise, return the result of performing [=coerce a JavaScript return=] on |resultTypes| and |ret|.
     1. Let |store| be the [=surrounding agent=]'s [=associated store=].
