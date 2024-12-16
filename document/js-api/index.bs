@@ -1170,7 +1170,7 @@ This slot holds a [=function address=] relative to the [=surrounding agent=]'s [
     1. Let |args| be the result of [=coerce JavaScript arguments|coercing arguments=] (|functype|,|argValues|).
     1. Let (|store|, |ret|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
-    1. If |ret| is [=error=], throw an exception. This exception should be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
+    1. If |ret| is [=error=], throw an exception. This exception must be a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
     1. If |ret| is [=THROW=] [=ref.exn=] |exnaddr|, then:
         1. Let |tagaddr| be [=exn_tag=](|store|, |exnaddr|).
         1. Let |payload| be [=exn_read=](|store|, |exnaddr|).
@@ -1437,7 +1437,7 @@ interface Suspending {
     1. Add an entry mapping |ec| to [=active=] in |map|.
     1. Let (|store|, |result|) be the result of [=func_invoke=](|store|, |funcaddr|, |args|).
     1. Assert: If control reaches here, we have done waiting for suspended imports.
-    1. If the entry for |ec| in |map| is not [=active=] then throw a WebAssembly {{RuntimeError}} exception. Otherwise, remove the entry for |ec| from [=map=].
+    1. If the entry for |ec| in |map| is not [=active=] then throw a WebAssembly {{SuspendError}} exception. Otherwise, remove the entry for |ec| from [=map=].
     1. Set the [=surrounding agent=]'s [=associated store=] to |store|.
     1. If |result| is [=error=], throw a WebAssembly {{RuntimeError}} exception, unless otherwise indicated by <a href="#errors">the WebAssembly error mapping</a>.
     1. Otherwise, if |result| is of the form [=throw=] exnaddr,
@@ -1476,7 +1476,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
         1. Let |async_context| be the [=surrounding agent=]'s [=running execution context=].
         1. Let |map| be the [=surrounding agent=]'s associated [=Execution Context Status map=].
         1. If the entry for |async_context| in |map| is not [=active=], then:
-            1. Perform [=throw a JavaScript exception=] with a {{RuntimeError}} exception.
+            1. Perform [=throw a JavaScript exception=] with a {{SuspendError}} exception.
         1. [=Prepare to run script=] with |relevant settings|.
         1. [=Prepare to run a callback=] with |stored settings|.
         1. Let [|parameters|] → [|resultTypes|] be |functype|.
@@ -1495,7 +1495,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
             1. Note: We only invoke [$Await$] if the call to |func| has returned a Promise object.
             1. Note: This will suspend both this algorithm, and the WebAssembly function being invoked by the [=evaluate a Promising function=] algorithm. On return, |ret| will be either a normal completion or a throw completion.
             1. If the entry for |async_context| in |map| is not [=paused=] then:
-                1. Perform [=throw a JavaScript exception=] with a {{RuntimeError}}.
+                1. Perform [=throw a JavaScript exception=] with a {{SuspendError}}.
             1. Otherwise, set the entry to [=active=].
             1. If |awaitResult|.\[[Type]] is <emu-const>throw</emu-const>, then:
                1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] |ret|.\[[Value]].
@@ -1807,19 +1807,19 @@ To <dfn>get the JavaScript exception tag</dfn>, perform the following steps:
 
 <h3 id="error-objects">Error Objects</h3>
 
-WebAssembly defines the following Error classes: <dfn exception>CompileError</dfn>, <dfn exception>LinkError</dfn>, and <dfn exception>RuntimeError</dfn>.
+WebAssembly defines the following Error classes: <dfn exception>CompileError</dfn>, <dfn exception>LinkError</dfn>, <dfn exception>RuntimeError</dfn>, and <dfn exception>SuspendError</dfn>.
 
 <div algorithm="create the WebAssembly namespace object">
 When the [=namespace object=] for the {{WebAssembly}} namespace is [=create a namespace object|created=], the following steps must be run:
 
 1.  Let |namespaceObject| be the [=namespace object=].
-1.  [=list/iterate|For each=] |error| of « "CompileError", "LinkError", "RuntimeError" »,
+1.  [=list/iterate|For each=] |error| of « "CompileError", "LinkError", "RuntimeError", "SuspendError" »,
     1.  Let |constructor| be a new object, implementing the [=NativeError Object Structure=], with <var ignore>NativeError</var> set to |error|.
     1.  [=!=] [$DefineMethodProperty$](|namespaceObject|, |error|,  |constructor|, false).
 
 </div>
 
-Note: This defines {{CompileError}}, {{LinkError}}, and {{RuntimeError}} classes on the {{WebAssembly}} namespace, which are produced by the APIs defined in this specification.
+Note: This defines {{CompileError}}, {{LinkError}}, {{RuntimeError}}, and {{SuspendError}} classes on the {{WebAssembly}} namespace, which are produced by the APIs defined in this specification.
 They expose the same interface as native JavaScript errors like {{TypeError}} and {{RangeError}}.
 
 Note: It is not currently possible to define this behavior using Web IDL.
