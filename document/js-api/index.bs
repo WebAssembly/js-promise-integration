@@ -1501,7 +1501,7 @@ To <dfn>create a suspending function</dfn> from a JavaScript function |func|, wi
                 1. Let |awaitResult| be the result of performing [$Completion$]([$Await$](|promise|)).
                 1. Note: This will suspend both this algorithm, and the WebAssembly function being invoked by the [=evaluate a Promising function=] algorithm. On return, |ret| will be either a normal completion or a throw completion.
                 1. If the entry for |async_context| in |map| is not [=paused=] then:
-                    1. Perform [=throw a JavaScript exception=] with a {{RuntimeError}}.
+                    1. Perform [=throw a JavaScript exception=] with a {{SuspendError}}.
                 1. Otherwise, set the entry to [=active=].
                 1. If |awaitResult|.\[[Type]] is <emu-const>throw</emu-const>, then:
                    1. Let |type|, |payload| and |opaqueData| be the result of [=coerce a JavaScript exception|coercing the JavaScript exception=] |ret|.\[[Value]].
