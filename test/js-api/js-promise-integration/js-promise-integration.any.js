@@ -168,27 +168,27 @@ promise_test(async () => {
   let builder = new WasmModuleBuilder();
   let AbeforeB = recordAbeforeB();
   import42_index = builder.addImport('m', 'import42', kSig_i_i);
-  importSetA_index = builder.addImport('m', 'setA', kSig_v_v);
+  importSetB_index = builder.addImport('m', 'setB', kSig_v_v);
   builder.addFunction("test", kSig_i_i)
       .addBody([
           kExprLocalGet, 0,
           kExprCallFunction, import42_index, // suspend?
-          kExprCallFunction, importSetA_index
+          kExprCallFunction, importSetB_index
       ]).exportFunc();
   let import42 = WebAssembly.Suspending(()=>42);
   let instance = builder.instantiate({m: {import42: import42,
-    setA:AbeforeB.setA}});
+    setB:AbeforeB.setB}});
 
   let wrapped_export = WebAssembly.promising(instance.exports.test);
 
   let exported_promise = wrapped_export();
-  AbeforeB.setB();
+  AbeforeB.setA();
 
   assert_equals(await exported_promise, 42);
   // AbeforeB.showAbeforeB();
 
   assert_true(AbeforeB.isAbeforeB());
-}, "Do not suspend if the import's return value is not a Promise");
+}, "Do suspend even if the import's return value is not a Promise by wrapping it with Promise.resolve");
 
 test(t => {
   console.log("Throw after the first suspension");
