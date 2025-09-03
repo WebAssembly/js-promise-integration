@@ -154,9 +154,9 @@ The `WebAssembly.promising` function takes a WebAssembly function -- i.e., not a
 
 Note that, if the function `wasmFunc` suspends (by invoking a `Promise` returning import), then the `promise` will be returned to the `caller` before `wasmFunc` returns. When `wasmFunc` completes eventually, then `promise` will be resolved -- and one of `accept` or `reject` will be invoked by the browser's microtask runner.
 
-### Suspendable functions
+### Suspending functions
 
-We use the `Suspendable` constructor to signal to WebAssembly that a given import should cause a suspension of WebAssembly execution.
+We use the `Suspending` constructor to signal to WebAssembly that a given import should cause a suspension of WebAssembly execution.
 
 #### `new WebAssembly.Suspending(`*`jsFun`*`)`
 
@@ -165,12 +165,12 @@ The `WebAssembly.Suspending` constructor takes a JavaScript `Function` as an arg
 >Note that *`jsFun`* is expected to be a *JavaScript function*. This allows us to ignore certain so-called corner cases in the usage of JSPI: in particular there is no special handling of WebAssembly functions passed to `WebAssembly.Suspending`.
 
 1. If IsCallable(*jsFun*) is `false`, throw a `TypeError` exception.
-1. Let *suspendingProto* be `WebAssembly.Suspendable.%prototype%`
+1. Let *suspendingProto* be `WebAssembly.Suspending.%prototype%`
 1. Let *susp* be the result of `OrdinaryObjectCreate`(*`suspendingProto`*)
 1. Assign the `[[wrappedFunction]]` internal slot of *`susp`* to *`jsFun`*
 1. Return *susp*
 
-The most direct way that external functions can be accessed from a WebAssembly module is via imports.[^WebAssembly.Function] Therefore, we modify the *read-the-imports* algorithm to account for imports annotated as `Suspendable`.
+The most direct way that external functions can be accessed from a WebAssembly module is via imports.[^WebAssembly.Function] Therefore, we modify the *read-the-imports* algorithm to account for imports annotated as `Suspending`.
 
 [^WebAssembly.Function]: The other way is by using a `WebAssembly.Function` constructor, as proposed in the [js-types proposal](https://github.com/WebAssembly/js-types). However, the semantics of `WebAssembly.Function` also revolve around modules and importing.
 
