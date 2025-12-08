@@ -13,33 +13,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-core-spec:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2
-        with:
-          submodules: "recursive"
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-      - name: Setup Bikeshed
-        run: pip install bikeshed && bikeshed update
-      - name: Setup TexLive
-        run: sudo apt-get update -y && sudo apt-get install -y latexmk texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
-      - name: Setup Sphinx
-        run: pip install six && pip install sphinx==5.1.0
-      - name: Build main spec
-        run: cd document/core && make main
-      - name: Run Bikeshed
-        run: cd document/core && make bikeshed
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: core-rendered
-          path: document/core/_build/html
-
   build-js-api-spec:
     runs-on: ubuntu-latest
     steps:
@@ -69,26 +42,6 @@ jobs:
         with:
           name: web-api-rendered
           path: document/web-api/index.html
-
-  build-code-metadata-spec:
-    runs-on: ubuntu-latest
-    needs: [build-core-spec]
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2
-        with:
-          submodules: "recursive"
-      - name: Setup TexLive
-        run: sudo apt-get update -y && sudo apt-get install -y latexmk texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
-      - name: Setup Sphinx
-        run: pip install six && pip install sphinx==5.1.0
-      - name: Build main spec
-        run: cd document/metadata/code && make main
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-metadata-rendered
-          path: document/metadata/code/_build/html
 
   build-legacy-exceptions-core-spec:
     runs-on: ubuntu-latest
