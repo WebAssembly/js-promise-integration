@@ -34,7 +34,7 @@ def Main():
       'Validation Algorithm',
       'Custom Sections',
       'Soundness',
-      'Changes',
+      'Change History',
       'Index of Types',
       'Index of Instructions',
       'Index of Semantic Rules']:

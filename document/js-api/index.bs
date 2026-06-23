@@ -23,6 +23,12 @@ Date: now
     "title": "WebAssembly Core Specification",
     "publisher": "W3C WebAssembly Community Group",
     "status": "Draft"
+  },
+  "WASMWEB": {
+    "href": "https://webassembly.github.io/spec/js-api/",
+    "title": "WebAssembly Web API Specification",
+    "publisher": "W3C WebAssembly Community Group",
+    "status": "Draft"
   }
 }
 </pre>
@@ -73,7 +79,11 @@ urlPrefix: https://tc39.github.io/ecma262/; spec: ECMASCRIPT
         text: 𝔽; url: #𝔽
         text: ℤ; url: #ℤ
         text: SameValue; url: sec-samevalue
+        text: Array; url: sec-array-exotic-objects
+        text: BigInt; url: sec-ecmascript-language-types-bigint-type
 urlPrefix: https://webassembly.github.io/spec/core/; spec: WebAssembly; type: dfn
+    text: embedding interface; url: appending/embedding.html
+    text: scope; url: intro/introduction.html#scope
     url: valid/modules.html#valid-module
         text: valid
         text: WebAssembly module validation
@@ -238,7 +248,14 @@ emu-const {
 }
 </style>
 
-This API provides a way to access WebAssembly [[WEBASSEMBLY]] through a bridge to explicitly construct modules from JavaScript [[ECMASCRIPT]].
+<h2 id="intro">Introduction</h2>
+
+By design, the [=scope=] of the WebAssembly core specification [[WEBASSEMBLY]] does not include a description of how WebAssembly programs interact with their surrounding execution environment.
+Instead it defines an abstract [=embedding interface=] between WebAssembly and its environment, (called the *embedder*).
+It is only through this interface that an embedder interacts with the semantics of WebAssembly, and the embedder implements the connection between its host environment and the embedding API.
+This document describes the embedding of WebAssembly into JavaScript [[ECMASCRIPT]] environments, including how WebAssembly modules can be constructed and instantiated, how imported and exported functions are called, how data is exchanged, and how errors are handled.
+When the JavaScript environment is itself embedded in a Web browser, the Web API spec [[WASMWEB]] describes additional behavior relevant to the Web environment.
+
 
 <h2 id="sample">Sample API Usage</h2>
 
@@ -1919,3 +1936,22 @@ In practice, an implementation may run out of resources for valid modules below 
 <p><em>This section is non-normative.</em></p>
 
 This document defines a host environment for WebAssembly. It enables a WebAssembly instance to [=import=] JavaScript objects and functions from an [=read the imports|import object=], but otherwise provides no access to the embedding environment. Thus a WebAssembly instance is bound to the same constraints as JavaScript.
+
+<h2 id="change-history">Change History</h2>
+
+<p><em>This section is non-normative.</em></p>
+
+<p>Since the original release 1.0 of the WebAssembly specification, a number of proposals for extensions have been integrated.
+The following sections provide an overview of what has changed.</p>
+
+<h3 id="release-20">Release 2.0</h3>
+
+<h4 class="no-toc heading settled">Multiple Values</h4>
+Multiple values can be returned from WebAssembly functions into JavaScript as an [=Array=] object.
+
+<h4 class="no-toc heading settled">BigInt Integration</h4>
+WebAssembly [=i64=] values can be passed to and from JavaScript (via imported or exported globals, table get or set operations, function return values or arguments) as [=BigInt=] objects.
+
+<h4 class="no-toc heading settled">Reference types</h4>
+JavaScript values can be passed to and from WebAssembly (via imported or exported globals, table set or get operations, and function arguments or return values) as [=externref=] values.
+Multiple tables can be exported and imported to and from JavaScript.
